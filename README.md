@@ -1,12 +1,49 @@
 # MBSIT
 
-# Step1: kinds of marker group
+# title of paper: Clustering and trajectory inference of single-cell RNA-seq data by marker-based subgroup identification method
+
+example1: Visualization and analysis of single-cell RNA-seq data by kernel-based similarity learning
+
+# Step1: kinds of marker group for clustering
+
+## marker1: ideal situation
+unique expressed genes with the same expression level.
+simulate a 20x20 expression matrix.
+
+## marker2: noise of distribution
+some cells miss the markers, other cells express few markers.
+simulate a series of pattern: missing, adding, combinatin.
+
+## marker3: difference of expression level
+markers in the marker group have different expression level, thus the distance is not zero, but we should make it to be zero.
+
+## marker4: combination
+
+## large scale simulation data
+our tool can be used in a specific situation. marker is not unique expressed gene, but the identity of a subgroup.
+
+# Step2: kinds of marker group for pseudotime?
 
 
+# transfer to statistic question
+
+# test dataset
+Mainstream platform:
+smart-seq
+10x
+
+# methods comparison
+
+Note: learn from the SIMLR.
+
+# build R bioconductor package
+
+# Backgroud
 
 大部分的聚类的出发点是考虑细胞之间的相似性，聚类，再找marker。
 但是这必然面临者一个问题，怎么选择聚类的k，以及如何解读每个cluster，所以必然会寻找marker。不管什么聚类，都非常依赖与特征选择，这个太主观，而且风险很大。
 为什么不换个角度，直接寻找能够定义一个subgroup的marker？然后再来定义一个cluster？这样才是从生物学的角度出发的方法。优势：直观、其他的可能。（急需一个数据集来证明）
+
 一个subtype偶然出现的概率，blast偶然比对上的概率。e-value
 我的工具必须被数学化、统计化，并添加一个实用的模型。
 https://en.wikipedia.org/wiki/Distance_correlation
@@ -31,7 +68,6 @@ energy package for R
 现有的很多方法都可以做，有些方法有很多明显的缺陷，如何评估呢？
 
 多看点nature method的单细胞文章，找找灵感。
-
 各个平台的都测试一下，做得user friendly些，争取更多的引用。争取引爆引用。
 
 

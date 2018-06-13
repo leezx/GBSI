@@ -24,6 +24,12 @@ our tool can be used in a specific situation. marker is not unique expressed gen
 
 # Step2: kinds of marker group for pseudotime?
 
+# Algorithem
+## 1. calculate the distance/correlation of each gene
+## 2. find local center by local centrality clustering
+## 3. iterate until get all the markers of a subgroup
+## 4. clustering
+## 5. apply in pseudotime
 
 # transfer to statistic question
 
@@ -39,6 +45,13 @@ Note: learn from the SIMLR.
 # build R bioconductor package
 
 # Backgroud
+
+# Reference
+[SIMLR: Visualization and analysis of single-cell RNA-seq data by kernel-based similarity learning](https://www.nature.com/articles/nmeth.4207)
+[SC3: consensus clustering of single-cell RNA-seq data](https://www.nature.com/articles/nmeth.4236)
+[基于局部中心量度的聚类算法研究](http://blog.sciencenet.cn/blog-3273400-1097494.html)
+[一种基于K-Means局部最优性的高效聚类算法](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.484.7290&rep=rep1&type=pdf)
+
 
 大部分的聚类的出发点是考虑细胞之间的相似性，聚类，再找marker。
 但是这必然面临者一个问题，怎么选择聚类的k，以及如何解读每个cluster，所以必然会寻找marker。不管什么聚类，都非常依赖与特征选择，这个太主观，而且风险很大。

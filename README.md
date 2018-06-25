@@ -38,6 +38,14 @@ Mainstream platform:
 smart-seq
 10x
 
+# key feature
+
+1. No need to choose a K;
+2. More intuitive and easy for downstream analysis;
+3. Avoid the effect of condounder for clustering;
+4. Identify rare subgroup;
+5. Pseudotime analysis?
+
 # methods comparison
 
 Note: learn from the SIMLR.

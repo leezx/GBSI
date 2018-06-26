@@ -50,6 +50,16 @@ smart-seq
 
 # methods comparison
 
+1. different between DBSCAN and other methods;
+
+2. use gene X cell matrix or gene correlation matrix for DBSCAN?
+
+3. how to find the best eps? just like cross validation.
+
+4. How can I choose eps and minPts for DBSCAN?
+
+    
+
 Note: learn from the SIMLR.
 
 # build R bioconductor package
@@ -68,6 +78,8 @@ Note: learn from the SIMLR.
 [基于密度的聚类中心自动确定的混合属性数据聚类算法研究](https://www.cn-ki.net/doc_detail?dbcode=CJFQ&filename=MOTO201510011)
 
 [dbscan: Density Based Clustering of Applications with Noise (DBSCAN) and Related Algorithms](https://cran.r-project.org/web/packages/dbscan/index.html)
+
+A Dynamic Method for Discovering Density Varied Clusters 
 
 
 大部分的聚类的出发点是考虑细胞之间的相似性，聚类，再找marker。

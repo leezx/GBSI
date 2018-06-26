@@ -43,8 +43,10 @@ smart-seq
 1. No need to choose a K;
 2. More intuitive and easy for downstream analysis;
 3. Avoid the effect of condounder for clustering;
-4. Identify rare subgroup;
-5. Pseudotime analysis?
+4. Intermediate subgroup;
+5. Identify rare subgroup;
+6. find negative marker;
+7. Pseudotime analysis?
 
 # methods comparison
 
@@ -56,9 +58,16 @@ Note: learn from the SIMLR.
 
 # Reference
 [SIMLR: Visualization and analysis of single-cell RNA-seq data by kernel-based similarity learning](https://www.nature.com/articles/nmeth.4207)
+
 [SC3: consensus clustering of single-cell RNA-seq data](https://www.nature.com/articles/nmeth.4236)
+
 [基于局部中心量度的聚类算法研究](http://blog.sciencenet.cn/blog-3273400-1097494.html)
+
 [一种基于K-Means局部最优性的高效聚类算法](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.484.7290&rep=rep1&type=pdf)
+
+[基于密度的聚类中心自动确定的混合属性数据聚类算法研究](https://www.cn-ki.net/doc_detail?dbcode=CJFQ&filename=MOTO201510011)
+
+[dbscan: Density Based Clustering of Applications with Noise (DBSCAN) and Related Algorithms](https://cran.r-project.org/web/packages/dbscan/index.html)
 
 
 大部分的聚类的出发点是考虑细胞之间的相似性，聚类，再找marker。

@@ -75,7 +75,27 @@ smart-seq
 3. less than 3 cells far away from the main population;
 4. How to prove my method is better for scRNA-seq data?
 5. the factor cause the outlier
-6. the easist way: PCA 
+6. the easiest way: PCA and diffusion map (nature paper)
+
+
+
+# Detecting High Dimensional Outliers    
+
+Interpretability of outliers 
+
+Which subspaces manifest the outliers or an assessment regarding the “outlying-ness” of the objects 
+
+Data sparsity: data in high-D spaces are often sparse 
+
+The distance between objects becomes heavily dominated by noise as the dimensionality increases 
+
+Data subspaces 
+
+Local behavior and patterns of data 
+
+Scalability with respect to dimensionality 
+
+The number of subspaces increases exponentially    
 
 
 
@@ -101,6 +121,10 @@ smart-seq
 [dbscan: Density Based Clustering of Applications with Noise (DBSCAN) and Related Algorithms](https://cran.r-project.org/web/packages/dbscan/index.html)
 
 A Dynamic Method for Discovering Density Varied Clusters 
+
+[Outliers and the correlation coefficient](http://andreykostenko.com/outliers-and-the-correlation-coefficient/)
+
+MVN: Multivariate Normality Tests
 
 
 大部分的聚类的出发点是考虑细胞之间的相似性，聚类，再找marker。

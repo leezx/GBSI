@@ -58,7 +58,13 @@ smart-seq
 
 4. How can I choose eps and minPts for DBSCAN?
 
-    
+5. Why cor is better than dis?
+
+6. how to compare pearson and spearman?
+
+7. How to evaluate the significance of a module? MVN and variance analysis
+
+     
 
 Note: learn from the SIMLR.
 

@@ -64,9 +64,20 @@ smart-seq
 
 7. How to evaluate the significance of a module? MVN and variance analysis
 
+8. remove outlier (infer what lead to the outlier)
+
      
 
-Note: learn from the SIMLR.
+# outlier
+
+1. Low expression of most genes;
+2. Contamination;
+3. less than 3 cells far away from the main population;
+4. How to prove my method is better for scRNA-seq data?
+5. the factor cause the outlier
+6. the easist way: PCA 
+
+
 
 # build R bioconductor package
 
@@ -76,6 +87,10 @@ Note: learn from the SIMLR.
 [SIMLR: Visualization and analysis of single-cell RNA-seq data by kernel-based similarity learning](https://www.nature.com/articles/nmeth.4207)
 
 [SC3: consensus clustering of single-cell RNA-seq data](https://www.nature.com/articles/nmeth.4236)
+
+[GiniClust: detecting rare cell types from single-cell gene expression data with Gini index](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-016-1010-4)
+
+[Classification of low quality cells from single-cell RNA-seq data](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4758103/)
 
 [基于局部中心量度的聚类算法研究](http://blog.sciencenet.cn/blog-3273400-1097494.html)
 

@@ -15,8 +15,11 @@ expr_log4 <- apply(expr_log2>=1,2,function(x) {storage.mode(x) <- 'integer'; x})
 overlap <- t(expr_log4) %*% expr_log4 
 
 # simulate data
-# expr_log3 <- t(simulate_data())
-expr_log3 <- t(simulate_data(10,100,50,show_name = F))
+expr_log3 <- t(simulate_data())
+# expr_log3 <- t(simulate_data(10,100,50,show_name = F))
+# add outlier
+expr_log3 <- rbind(expr_log3, full=rep(c(19,20),30), empty=rep(c(0,1),30))
+pheatmap(t(expr_log3), cluster_rows = F, cluster_cols = F)
 
 library(parallelDist)
 dis_matrix <- parDist(x = as.matrix(t(expr_log3)), method = "euclidean", threads=3)
@@ -33,10 +36,11 @@ pheatmap(dis_matrix, cluster_rows = F, cluster_cols = F)
 # dis_matrix <- apply(dis_matrix,2,function(x) {storage.mode(x) <- 'integer'; x})
 
 library(WGCNA)
+# standard deviation can't be zero
 cor_matrix_pearson <- WGCNA::cor(x = as.matrix((expr_log3)), method = "pearson")
 cor_matrix_spearman <- WGCNA::cor(x = as.matrix((expr_log3)), method = "spearman")
 # cor_matrix_kendall <- WGCNA::cor(x = as.matrix((expr_log3)), method = "kendall") # too slow
-pheatmap(cor_matrix_pearson, cluster_rows = F, cluster_cols = F, show_rownames = F, show_colnames = F)
+pheatmap(cor_matrix_spearman, cluster_rows = F, cluster_cols = F, show_rownames = T, show_colnames = T)
 
 a <- c("SEMA3D","SMAGP","KRT7","CLDN4","CLDN7","CDH1","EFNA1","ACSM3","WNT6")
 b <- c("PTPRZ1","MOXD1","SCRG1","EDNRB","INSC","SPP1","PLP1")

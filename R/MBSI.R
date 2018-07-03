@@ -134,7 +134,7 @@ get_center_point <- function(gene_list=c("SEMA3D","SMAGP","KRT7","CLDN4")){
 }
 
 # get overlap cells
-get_overlap_cells <- function(gene_list=c("SEMA3D","SMAGP","KRT7","CLDN4")){
+get_overlap_cells <- function(expr_log4, gene_list=c("SEMA3D","SMAGP","KRT7","CLDN4")){
   if (length(gene_list)==1){
     all_cells <- expr_log4[,gene_list]
     return(names(all_cells[all_cells==T]))

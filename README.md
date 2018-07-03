@@ -1,6 +1,7 @@
-# MBSIT
+# MSIC
 
-# title of paper: Clustering and trajectory inference of single-cell RNA-seq data by marker-based subgroup identification method
+# module-based subtype identification and clustering of single-cell RNA-seq data 
+title of paper: Clustering and trajectory inference of single-cell RNA-seq data by marker-based subgroup identification method
 
 example1: Visualization and analysis of single-cell RNA-seq data by kernel-based similarity learning
 

@@ -127,6 +127,10 @@ A Dynamic Method for Discovering Density Varied Clusters
 
 MVN: Multivariate Normality Tests
 
+[Practical Guide to Principal Component Analysis (PCA) in R & Python](https://www.analyticsvidhya.com/blog/2016/03/practical-guide-principal-component-analysis-python/)
+
+而loadings是用主成分反表示X变量的系数，也可叫载重，在matlab中是score。我的理解就是新的主成分变量占原来变量的比重。
+
 
 大部分的聚类的出发点是考虑细胞之间的相似性，聚类，再找marker。
 但是这必然面临者一个问题，怎么选择聚类的k，以及如何解读每个cluster，所以必然会寻找marker。不管什么聚类，都非常依赖与特征选择，这个太主观，而且风险很大。

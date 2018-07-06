@@ -1,7 +1,6 @@
 setwd("/Users/surgery/Project/HOME/github/MBSIT/R")
 load("/Users/surgery/Project/HOME/1-projects/1.scRNA-seq/2-smart-seq/eachGroup/HSCR_5c3.Rdata")
-
-logcounts(tmp_group)
+options(stringsAsFactors = F)
 
 cellCountPerGene <- rowSums(counts(tmp_group)>=5)
 geneCountPerCell <- colSums(counts(tmp_group)>=5)
@@ -34,31 +33,26 @@ epsDetection <- function(pcMatrix=mypcMatrix, start=1, end=100, fold=5, primary=
   # {return(as.double(names(sort(allnoiseCount %% as.integer(percent*dim(pcMatrix)[1]))[1])))}
 }
 
-bestEpsDetection <- function(corMatrix=dis_matrix_pearson2, start=1, end=100, fold=5, primary=T, minPts=6, percent=0.05, plot=T){
+epsDetectionCor <- function(disMatrix=dis_matrix_pearson3, start=0, end=1, step=10, minPts=5, plot=F){
   # DBSCAN
   library(dbscan)
-  corMatrix[is.na(corMatrix)] <- 1
-  corMatrixDis <- as.dist(corMatrix)
-  if (primary==T){ by = 1 } else {by=(end-start)/100}
-  epsLevels <- (seq(start, end, by=by)-1)*fold
-  allclusterCount <- c()
+  epsLevels <- seq(start, end, by=(end-start)/step)
+  allClusterCount <- c()
   alleps <- c()
   for ( eps in epsLevels){
     #eps <- 5*(i-1)
     alleps <- c(alleps, eps)
     # minPts <- 10
-    res <- dbscan(corMatrixDis, eps = eps, minPts = minPts) 
-    clusterCount <- length(table(res$cluster))
-    allclusterCount <- c(allclusterCount, clusterCount)
+    res <- dbscan(disMatrix, eps = eps, minPts = minPts) 
+    clusterCount <- length(table(res$cluster)) - 1
+    print(paste("eps: ", eps, ", gene cluster number: ", clusterCount))
+    allClusterCount <- c(allClusterCount, clusterCount)
   }
-  names(allclusterCount) <- alleps
-  allclusterCount <- allclusterCount[!is.na(allclusterCount)]
-  allclusterCount <- allclusterCount[allclusterCount!=dim(corMatrixDis)[1]]
-  if (plot) {plot(allnoiseCount)}
-  if (primary==T)
-  {return(c(as.integer(names(allnoiseCount)[1]), as.integer(names(allnoiseCount)[length(allnoiseCount)])))}
-  else {return(as.double(names(sort(allnoiseCount[allnoiseCount>=percent*dim(corMatrixDis)[1]])[1])))}
-  # {return(as.double(names(sort(allnoiseCount %% as.integer(percent*dim(corMatrix)[1]))[1])))}
+  names(allClusterCount) <- alleps
+  maxStart <- which(allClusterCount==max(allClusterCount))[1]
+  maxEnd <- which(allClusterCount==max(allClusterCount))[length(which(allClusterCount==max(allClusterCount)))]
+  if (length(which(allClusterCount==max(allClusterCount)))>1) {return(as.double(names(allClusterCount[maxStart])))}
+  return(c(as.double(names(allClusterCount[maxStart-1])), as.double(names(allClusterCount[maxStart+1]))))
 }
 
 outlierDetection <- function(M=logcounts(tmp_group), pcNum=100, method="prcomp", minPts=10, plot=T){
@@ -92,44 +86,350 @@ outlierDetection <- function(M=logcounts(tmp_group), pcNum=100, method="prcomp",
     return(pca)
 }
 
+centerDetection <- function(corM=dis_matrix_pearson2, genelist=genelist){
+  if (length(genelist)==1) {
+    # print("WARN: only one gene in genelist!")
+    return(genelist[1])}
+  corMsub <- corM[genelist, genelist]
+  corRowSum <- rowSums(corMsub)
+  return(names(sort(corRowSum)[1]))
+}
+
+singleModuleDetectionCenter <- function(corM=dis_matrix_pearson2, overlapM=geneOverlap,center=center, topCount=10, corThresd=0.5, overlapThresd=3, centerBlackList=c()){
+  genelist <- c(center)
+  while (length(genelist) < topCount) {
+    centerBlackList=c(centerBlackList, center)
+    nearestGeneV <- sort(corM[center,!colnames(corM)%in%genelist])[1]
+    nearestGene <- names(nearestGeneV)
+    if (nearestGeneV > corThresd) {
+      # print("nearestGeneV > corThresd")
+      return(list(genelist=genelist, centerBlackList=unique(centerBlackList)))
+    } else if (overlapM[center, nearestGene] < overlapThresd) {
+      # print("overlapM[center, nearestGene] < overlapThresd")
+      return(list(genelist=genelist, centerBlackList=unique(centerBlackList)))
+    } 
+    genelist <- c(genelist, nearestGene)
+    center <- centerDetection(corM, genelist)
+    # print(paste("nearestGene is: ", nearestGene, ", new center is: ", center, sep=" "))
+  }
+  # genelist <- moduleShift(corM, genelist)
+  # pheatmap(logcounts(tmp_group)[genelist,], show_colnames = F, cluster_rows = F)
+  return(list(genelist=genelist, centerBlackList=unique(centerBlackList)))
+}
+
+singleModuleDetectionSum <- function(corM=dis_matrix_pearson2, overlapM=geneOverlap, center=center, topCount=100, corThresd=0.5, overlapThresd=3, centerBlackList=c()){
+  genelist <- c(center)
+  centerBlackList=c(centerBlackList, center)
+  while (length(genelist) < topCount) {
+    if (length(genelist)==1){
+      nearestGeneV <- sort(corM[center,!colnames(corM)%in%genelist])[1]
+      nearestGene <- names(nearestGeneV)
+      if (nearestGeneV > corThresd) {return(genelist)} 
+    } else if (length(genelist)>1) {
+      nearestGeneV <- sort(colSums(corM[genelist,!colnames(corM)%in%genelist]))[1]
+      nearestGene <- names(nearestGeneV)
+      if (min(corM[genelist,nearestGene]) > corThresd) {return(genelist)}
+    }
+    # centerBlackList=c(centerBlackList, nearestGene)
+    genelist <- c(genelist, nearestGene)
+    if (nearestGene %in% centerBlackList) {
+      print("nearestGene %in% centerBlackList")
+      return(genelist)
+      next
+    }
+    # center <- centerDetection(corM, genelist)
+    # print(paste("nearestGene is: ", nearestGene, ", new center is: ", center, sep=" "))
+  }
+  # genelist <- moduleShift(corM, genelist)
+  # pheatmap(logcounts(tmp_group)[genelist,], show_colnames = F, cluster_rows = F)
+  # return(list(genelist=genelist, centerBlackList=unique(centerBlackList)))
+  return(genelist)
+}
+
+moduleShiftCenter <- function(corM=dis_matrix_pearson2, genelist=genelist, centerBlackList=c()) {
+  if (length(genelist)==1) {
+    return(list(genelist=genelist, centerBlackList=unique(centerBlackList)))
+  }
+  while (T){
+    center <- centerDetection(corM, genelist)
+    centerBlackList=c(centerBlackList, center)
+    nearestGene <- names(sort(corM[center,!colnames(corM)%in%genelist])[1])
+    disSumOutlier <- sort(rowSums(corM[genelist, genelist]), decreasing = T)[1]
+    genelist1 <- c(genelist, nearestGene)
+    genelist1 <- genelist1[!genelist1%in%names(disSumOutlier)]
+    nearestGeneDis <- sum(corM[nearestGene, genelist1])
+    if (nearestGeneDis < disSumOutlier) {
+      genelist <- genelist1
+      # print(paste(nearestGene, "is closer than", names(disSumOutlier), ". replace it already!"))
+    }
+    else {
+      # print("Gene set has local convergence")
+      break}
+  }
+  return(list(genelist=genelist, centerBlackList=unique(centerBlackList)))
+}
+
+moduleShiftSum <- function(corM=dis_matrix_pearson2, genelist=genelist, centerBlackList=c()) {
+  if (length(genelist)==1) {
+    return(list(genelist=genelist, centerBlackList=unique(centerBlackList)))
+  }
+  while (T){
+    center <- centerDetection(corM, genelist)
+    centerBlackList=c(centerBlackList, center)
+    nearestGene <- names(sort(corM[center,!colnames(corM)%in%genelist])[1])
+    disSumOutlier <- sort(rowSums(corM[genelist, genelist]), decreasing = T)[1]
+    genelist1 <- c(genelist, nearestGene)
+    genelist1 <- genelist1[!genelist1%in%names(disSumOutlier)]
+    nearestGeneDis <- sum(corM[nearestGene, genelist1])
+    if (nearestGeneDis < disSumOutlier) {
+      genelist <- genelist1
+      # print(paste(nearestGene, "is closer than", names(disSumOutlier), ". replace it already!"))
+    }
+    else {
+      # print("Gene set has local convergence")
+      break}
+  }
+  return(list(genelist=genelist, centerBlackList=unique(centerBlackList)))
+}
+
+fullModuleDetectionCenter <- function(corM=dis_matrix_pearson2, marker_result=marker_result){
+  moduleResult <- list()
+  count <- 1
+  #count2 <- 0
+  j <- 0
+  #totalCount <- dim(corM)[1]
+  centerBlackList <- c()
+  totalLength <- length(table(marker_result$cluster))
+  for (i in 1:totalLength) {
+    #for (center in rownames(corM)) {
+    geneCluster <- marker_result[marker_result$cluster==i,]$gene
+    center <- centerDetection(corM, geneCluster)
+    #count2 <- count2 + 1
+    #if (count2%%as.integer(totalCount/10)==0){
+    j <- j+1
+    print(paste(j, "of", totalLength, "was finished..."))
+    # center <- i
+    # print(center)
+    result1 <- singleModuleDetection(corM=corM, overlapM=geneOverlap, center=center, centerBlackList=centerBlackList, topCount=100)
+    genelist <- result1[["genelist"]]
+    centerBlackList1 <- result1[["centerBlackList"]]
+    result2 <- moduleShift(corM, genelist, centerBlackList=centerBlackList1)
+    genelist <- result2[["genelist"]]
+    centerBlackList2 <- result2[["centerBlackList"]]
+    tempCenter <- centerDetection(corM, genelist)
+    if (tempCenter%in%centerBlackList) {
+      # print(paste(tempCenter, "is duplicated center!", sep=" "))
+      next}
+    centerBlackList <- c(centerBlackList, centerBlackList2)
+    # print(genelist)
+    if (length(genelist) >= 5){
+      moduleResult[[count]] <- genelist
+      count <- count + 1
+    }
+  }
+  return(moduleResult)
+}
+
+fullModuleDetectionSum <- function(corM=dis_matrix_pearson2, localCenters=rownames(densityDf)){
+  moduleResult <- list()
+  moduleResultbak <- list()
+  count <- 1
+  count2 <- 1
+  #count2 <- 0
+  j <- 0
+  #totalCount <- dim(corM)[1]
+  centerBlackList <- c()
+  totalLength <- length(localCenters)
+  # for (i in 1:totalLength) {
+  for (center in localCenters) {
+    if (center%in%centerBlackList) {
+      print(paste(center, "is duplicated center!", sep=" "))
+      next}
+    # geneCluster <- marker_result[marker_result$cluster==i,]$gene
+    # center <- centerDetection(corM, geneCluster)
+    #count2 <- count2 + 1
+    #if (count2%%as.integer(totalCount/10)==0){
+    j <- j+1
+    # print(paste(j, "of", totalLength, "was finished..."))
+    # center <- i
+    # print(center)
+    genelist <- singleModuleDetectionSum(corM=corM, overlapM=geneOverlap, center=center, centerBlackList=centerBlackList, topCount=100)
+    if (length(intersect(genelist, centerBlackList)) > 0) {
+      moduleResultbak[[count2]] <- genelist
+      count2 <- count2 + 1
+      next
+    }
+    # genelist <- result1
+    centerBlackList <- unique(c(centerBlackList, genelist))
+    # result2 <- moduleShift(corM, genelist, centerBlackList=centerBlackList1)
+    #genelist <- result2[["genelist"]]
+    #centerBlackList2 <- result2[["centerBlackList"]]
+    #tempCenter <- centerDetection(corM, genelist)
+    #centerBlackList <- c(centerBlackList, centerBlackList2)
+    # print(genelist)
+    if (length(genelist) >= 5){
+      moduleResult[[count]] <- genelist
+      count <- count + 1
+    }
+  }
+  for (i in 1:length(moduleResultbak)) {
+    for (j in 1:length(moduleResult)){
+      if (length(intersect(moduleResult[[j]], moduleResultbak[[i]]))){
+        moduleResult[[j]] <- unique(c(moduleResult[[j]], moduleResultbak[[i]]))
+      }
+    }
+  }
+  return(moduleResult)
+}
+
+fullModuleDetectionAll <- function(corM=dis_matrix_pearson2){
+  moduleResult <- list()
+  count <- 1
+  count2 <- 0
+  j <- 0
+  totalCount <- dim(corM)[1]
+  centerBlackList <- c()
+  #for (i in 1:length(table(marker_result$cluster))) {
+  for (center in rownames(corM)) {
+    #geneCluster <- marker_result[marker_result$cluster==i,]$gene
+    #center <- centerDetection(corM, geneCluster)
+    count2 <- count2 + 1
+    if (count2%%as.integer(totalCount/10)==0){
+      j <- j+1
+      print(paste(j*10, "percent was finished..."))}
+    # center <- i
+    # print(center)
+    result1 <- singleModuleDetection(corM=corM, overlapM=geneOverlap, center=center, centerBlackList=centerBlackList, topCount=100)
+    genelist <- result1[["genelist"]]
+    centerBlackList1 <- result1[["centerBlackList"]]
+    result2 <- moduleShift(corM, genelist, centerBlackList=centerBlackList1)
+    genelist <- result2[["genelist"]]
+    centerBlackList2 <- result2[["centerBlackList"]]
+    tempCenter <- centerDetection(corM, genelist)
+    if (tempCenter%in%centerBlackList) {
+      # print(paste(tempCenter, "is duplicated center!", sep=" "))
+      next}
+    centerBlackList <- c(centerBlackList, centerBlackList2)
+    # print(genelist)
+    if (length(genelist) >= 5){
+      moduleResult[[count]] <- genelist
+      count <- count + 1
+    }
+  }
+  return(moduleResult)
+}
+
+highDensityCenterDetection <- function(corM=dis_matrix_pearson2){
+  densityDf <- data.frame(row.names=rownames(corM))
+  for (i in seq(0.05,0.6,by=0.05)){
+    densityDf <- cbind(densityDf, rowSums(corM<i))
+  }
+  colnames(densityDf) <- as.character(seq(0.05,0.6,by=0.05))
+  densityDf <- densityDf[densityDf$`0.6` > 5,]
+  densityDf <- densityDf[names(sort(rowSums(densityDf), decreasing = T)),]
+  densityDf <- densityDf[names(sort(rowSums(densityDf > 0), decreasing = T)),]
+  return(rownames(densityDf))
+}
+
+sortmoduleResult <- function(corM, moduleResult=moduleResult){
+  meanCor <- c()
+  for (i in 1:length(moduleResult)){
+    meanCor <- c(meanCor, mean(corM[moduleResult[[i]], moduleResult[[i]]]))
+  }
+  names(meanCor) <- 1:length(moduleResult)
+  meanCor <- sort(meanCor)
+}
+
+clusterInference <- function(){
+  geneModule <- moduleResult[[1]]
+  exprM <- logcounts(tmp_group)[geneModule,] > 0
+  sign <- cor_matrix_spearman[geneModule,geneModule[1]] < 0 
+  exprM[sign,] <- exprM[sign,]*(-1)
+  cellOrder <- sort(colSums(exprM))
+  pheatmap(logcounts(tmp_group)[moduleResult[[1]],names(cellOrder)], show_colnames = F, cluster_rows = T, cluster_cols = F)
+}
+
+# pdf(sprintf('results/%s_maturation_trajectory.pdf', result.bn), width = 7, height = 5)
+pdf('moduleResult.pdf')
+expr <- logcounts(tmp_group)
+exprZscore <- (expr-apply(expr, 1, mean))/apply(expr, 1, sd)
+for (i in 1:length(moduleResult)){
+  pheatmap(expr[moduleResult[[i]],], show_colnames = F, cluster_rows = T)
+}
+dev.off()
+
+
+
 result <- outlierDetection(M=logcounts(tmp_group))
 tmp_group <- tmp_group[,result$cluster!=0]
 expr_log3 <- t(logcounts(tmp_group))
+# overlap
+expr_log4 <- apply(expr_log3>=1,2,function(x) {storage.mode(x) <- 'integer'; x})
+geneOverlap <- t(expr_log4) %*% expr_log4 
+use.gene <- rownames(geneOverlap)[apply(geneOverlap, 2, max) >= 5]
+
 library(WGCNA)
 # standard deviation can't be zero
-cor_matrix_pearson <- WGCNA::cor(x = as.matrix((expr_log3)), method = "pearson")
+# cor_matrix_pearson <- WGCNA::cor(x = as.matrix((expr_log3)), method = "pearson")
 cor_matrix_spearman <- WGCNA::cor(x = as.matrix((expr_log3)), method = "spearman")
 
-dis_matrix_pearson2 <- 1 - abs(cor_matrix_pearson)
+dis_matrix_pearson2 <- 1 - abs(cor_matrix_spearman)
 dis_matrix_pearson2[is.na(dis_matrix_pearson2)] <- 1
-# dis_matrix_pearson2 <- round(dis_matrix_pearson2,3)
-# dis_all <- c()
-# for (i in 1:dim(dis_matrix_pearson2)[1]){
-#   for (j in 1:dim(dis_matrix_pearson2)[2])
-#     if (i > j) {
-#       dis_all <- c(dis_all, dis_matrix_pearson2[i,j])
-#     } else if (i == j) {
-#       dis_matrix_pearson2[i,j] <- 1
-#     }
-# }
+dis_matrix_pearson2[row(dis_matrix_pearson2)==col(dis_matrix_pearson2)] <- 1
+dis_matrix_pearson2 <- dis_matrix_pearson2[use.gene, use.gene]
+minPerRow <- apply(dis_matrix_pearson2, 2, min)
+corThresd <- quantile(minPerRow, probs = seq(0, 1, 0.25))[2]
+dis_matrix_pearson2 <- dis_matrix_pearson2[names(minPerRow[minPerRow < corThresd]),names(minPerRow[minPerRow < corThresd])]
+dis_matrix_pearson3 <- as.dist(dis_matrix_pearson2)
+
+## DBSCAN
+eps <- 0
+start <- 0
+end <- 1
+count <- 0
+while (T) {  
+  count <- count + 1
+  print(paste("Round:", count))
+  epsPair <- epsDetectionCor(dis_matrix_pearson3, start=start, end=end)
+  if (length(epsPair)==2){
+    start <-  epsPair[1]
+    end <-  epsPair[2]
+  } else if (length(epsPair)==1){
+    eps <- epsPair
+    break
+  }
+}
+minPts <- 5
+res <- dbscan(dis_matrix_pearson3, eps = eps, minPts = minPts) 
+marker_result <- data.frame(gene=rownames(dis_matrix_pearson2),cluster=res$cluster,row.names = rownames(dis_matrix_pearson2))
+marker_result <- marker_result[marker_result$cluster!=0,]
+marker_result$cluster <- as.integer(as.factor(marker_result$cluster))
+
 ## Hierarchical Clustering
 # http://stat.ethz.ch/R-manual/R-patched/library/stats/html/hclust.html
-dis_matrix_pearson3 <- as.dist(dis_matrix_pearson2)
 hc <- fastcluster::hclust(dis_matrix_pearson3, method="average")
-plot(hc)
+# plot(hc)
 clusterNum <- c()
 for (i in 0:100){
   groups<-cutree(hc, h=(i/100))
-  clusterNum <- c(clusterNum, sum(table(groups)>=5))
-  plot(clusterNum)
-  #marker_result <- data.frame(gene=names(groups),cluster=as.vector(groups),row.names = names(groups))
-  #filter_cluster <- names(table(marker_result$cluster))[table(marker_result$cluster)>=5]
-  #marker_result <- marker_result[marker_result$cluster%in%filter_cluster,]
-  #plot_markers <- marker_result[marker_result$cluster==4,]
-  #plot_markers <- plot_markers[plot_markers$gene%in%rownames(tmp_group),]
+  tempNum <- sum(table(groups)>=5)
+  names(tempNum) <- i
+  clusterNum <- c(clusterNum, tempNum)
 }
+plot(clusterNum)
+return(names(sort(clusterNum, decreasing = T)[1]))
 
 
+save(tmp_group, expr_log3, hc, file="MSIC.Rdata")
+i <- 92
+groups<-cutree(hc, h=(i/100))
+
+marker_result <- data.frame(gene=names(groups),cluster=as.vector(groups),row.names = names(groups))
+filter_cluster <- names(table(marker_result$cluster))[table(marker_result$cluster)>=5]
+marker_result <- marker_result[marker_result$cluster%in%filter_cluster,]
+marker_result$cluster <- as.integer(as.factor(marker_result$cluster))
+
+genelist <- marker_result[marker_result$cluster==1,]$gene
 
 test <- function(){
 mydata <- t(logcounts(tmp_group))

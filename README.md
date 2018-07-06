@@ -125,7 +125,22 @@ A Dynamic Method for Discovering Density Varied Clusters
 
 [Outliers and the correlation coefficient](http://andreykostenko.com/outliers-and-the-correlation-coefficient/)
 
-MVN: Multivariate Normality Tests
+[MVN: Multivariate Normality Tests](https://cran.r-project.org/web/packages/MVN/vignettes/MVN.pdf)
+
+[MVN: An R Package for Assessing Multivariate Normality](https://journal.r-project.org/archive/2014-2/korkmaz-goksuluk-zararsiz.pdf)
+
+```R
+install.packages('knitr', repos = c('http://rforge.net', 'http://cran.rstudio.org'),
+             type = 'source')
+```
+
+```R
+test1 <- data.frame(a=rnorm(50, 0, 1), b=rnorm(50, 3, 2))
+```
+
+
+
+[Multivariate Negative Binomial Models for Insurance Claim Counts](https://www.actuaries.org/mexico2012/papers/Shi_Valdez.pdf)
 
 [Practical Guide to Principal Component Analysis (PCA) in R & Python](https://www.analyticsvidhya.com/blog/2016/03/practical-guide-principal-component-analysis-python/)
 

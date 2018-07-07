@@ -3,8 +3,6 @@
 # module-based subtype identification and clustering of single-cell RNA-seq data 
 title of paper: Clustering and trajectory inference of single-cell RNA-seq data by marker-based subgroup identification method
 
-example1: Visualization and analysis of single-cell RNA-seq data by kernel-based similarity learning
-
 # Step1: kinds of marker group for clustering
 
 ## marker1: ideal situation
@@ -20,12 +18,12 @@ markers in the marker group have different expression level, thus the distance i
 
 ## marker4: combination
 
+## marker5: continuous markers which express in all cells
+
 ## large scale simulation data
 our tool can be used in a specific situation. marker is not unique expressed gene, but the identity of a subgroup.
 
-# Step2: kinds of marker group for pseudotime?
-
-# Algorithem
+# Algorithm
 ## 1. calculate the distance/correlation of each gene
 ## 2. find local center by local centrality clustering
 ## 3. iterate until get all the markers of a subgroup
@@ -68,8 +66,62 @@ smart-seq
 8. remove outlier (infer what lead to the outlier)
 
      
+# problems of current clustering methods
+
+1. working with a Gene X Cell matrix, features and cluster k are the key determining factor. while the feature selection is often controversial and the choosing of cluster k  is often too subjective.
+2. features such as cell cycle genes and apoptosis genes are often confounding features which can largely affect the clustering result but have less biological meanings. whether to remove it or not is quite controversial.
+3. features often have 10k~20k, cells often have 100~5000. so current clustering method often need to  consume a lot of computing resources and time.
+4. hard to identify rare subgroups.
+5. the final purpose of clustering is to find markers, key role of marker. how many markers are enough to define a subtype?
+
+
+
 
 # outlier
+
+1. why removing outlier is necessary? using simulated data to explain this point
+2. why current  outlier detection method is not suitable? use ground truth to demonstrate this point, compare different tools (removing the rare populations)
+3. why using dimension reduction (cite paper)? top 100 or 95% explained variance PCs
+4. try different dimension reduction method (PCA and DM), compare the results
+5. outlier detection algorithm, minNum
+
+# Hypothesis
+
+1. different marker types (MT1-MTn), explain the biological meaning of this markers. using simulated data to demonstrate this point.
+
+2. why using correlation? why Spearman is better than Pearson? why not distance? figure out the meaning of the formula. extremum and outlier will seriously impact the Pearson correlation. Pearson is linear.  (The Spearman correlation is less sensitive than the Pearson correlation to strong outliers that are in the tails of both samples. That is because Spearman's rho limits the outlier to the value of its rank.)
+
+3. key modules locate in the local center of the gene network. using simulated data to demonstrate this point.
+
+4. why using overlap?
+
+5. how to choose the threshold? cutting threshold, percentage, top... why?
+
+   
+
+# nearest neighbors searching algorithm
+
+
+
+# cluster inference
+
+
+
+
+
+# summary analysis
+
+1. overlap, remove genes have less than k (3) overlap cells with any other genes.
+2. quantile, get the information of correlation, in order to set the threshold.
+3. slices method for network analysis for local center identification.
+
+
+
+# co-expression analysis
+
+something can be done by the way
+
+
 
 1. Low expression of most genes;
 2. Contamination;

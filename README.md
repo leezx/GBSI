@@ -20,6 +20,10 @@ markers in the marker group have different expression level, thus the distance i
 
 ## marker5: continuous markers which express in all cells
 
+## marker6: intermediate markers
+
+note: find all this theoretical markers in real (published) dataset will make your paper excellent.
+
 ## large scale simulation data
 our tool can be used in a specific situation. marker is not unique expressed gene, but the identity of a subgroup.
 
@@ -105,7 +109,15 @@ smart-seq
 
 # cluster inference
 
+10 markers are enough to make the inference
 
+you'd better make this method unsupervised
+
+# full module identification
+
+how to set threshold?
+
+key set & full set
 
 
 

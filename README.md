@@ -241,5 +241,14 @@ energy package for R
 多看点nature method的单细胞文章，找找灵感。
 各个平台的都测试一下，做得user friendly些，争取更多的引用。争取引爆引用。
 
+# Firstly try NBT
 
+[Boosting the power of single-cell analysis](https://www.nature.com/articles/nbt.4131)
+[Spatial reconstruction of single-cell gene expression data](https://www.nature.com/articles/nbt.3192)
+[Integrative single-cell analysis of transcriptional and epigenetic states in the human adult brain](https://www.nature.com/articles/nbt.4038)
+[Batch effects in single-cell RNA-sequencing data are corrected by matching mutual nearest neighbors](https://www.nature.com/articles/nbt.4091)
+[Single-cell analysis at the threshold](https://www.nature.com/articles/nbt.3721)
+
+
+# Secondly try Nature method
 

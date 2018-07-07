@@ -47,6 +47,7 @@ b <- c("PTPRZ1","MOXD1","SCRG1","EDNRB","INSC","SPP1","PLP1")
 c <- c("MSX1","NELL2","PLCH1","MMRN1","TRPM3","WNT2B","COLEC12","LIX1","ZIC1","RBFOX1","OTX1","TMEM88","ZIC2")
 d <- c("ISL1","NEUROD1","EYA2","SCG3","SIX1","SYT4","EBF1","NHLH1","ZMAT4","STMN2","ENO3","TAGLN3")
 e <- c("FAP","PRRX1","TGFBI","TWIST1","LUM","CDH11")
+f <- c(a,b,c,d,e)
 
 simulate_df <- simulate_data(10,100,50,show_name = F)
 res <- dbscan(simulate_df, eps = .5, minPts = 3) # col is feature, row is sample

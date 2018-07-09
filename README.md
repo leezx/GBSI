@@ -70,13 +70,15 @@ smart-seq
 8. remove outlier (infer what lead to the outlier)
 
      
-# problems of current clustering methods
+# limits of current clustering methods
 
-1. working with a Gene X Cell matrix, features and cluster k are the key determining factor. while the feature selection is often controversial and the choosing of cluster k  is often too subjective.
-2. features such as cell cycle genes and apoptosis genes are often confounding features which can largely affect the clustering result but have less biological meanings. whether to remove it or not is quite controversial.
-3. features often have 10k~20k, cells often have 100~5000. so current clustering method often need to  consume a lot of computing resources and time.
-4. hard to identify rare subgroups.
-5. the final purpose of clustering is to find markers, key role of marker. how many markers are enough to define a subtype?
+1. working with a Gene X Cell matrix, features and cluster k are the key determining factor. while the feature selection is often controversial and the choosing of cluster k  is often too subjective. Cell and cell similarity.
+2. overfitting problem
+3. features such as cell cycle genes and apoptosis genes are often confounding features which can largely affect the clustering result but have less biological meanings. whether to remove it or not is quite controversial. If not removed, any current clustering method can not avoid the confounds.
+4. features often have 10k~20k, cells often have 100~5000. so current clustering method often need to  consume a lot of computing resources and time.
+5. hard to identify rare subgroups.
+6. Can give the negative markers of a subtype
+7. the final purpose of clustering is to find markers, key role of marker. how many markers are enough to define a subtype? Marker is very necessary.
 
 
 
@@ -91,7 +93,7 @@ smart-seq
 
 # Hypothesis
 
-1. different marker types (MT1-MTn), explain the biological meaning of this markers. using simulated data to demonstrate this point.
+1. Different marker types (MT1-MTn), explain the biological meaning of this markers. using simulated data to demonstrate this point.
 
 2. why using correlation? why Spearman is better than Pearson? why not distance? figure out the meaning of the formula. extremum and outlier will seriously impact the Pearson correlation. Pearson is linear.  (The Spearman correlation is less sensitive than the Pearson correlation to strong outliers that are in the tails of both samples. That is because Spearman's rho limits the outlier to the value of its rank.)
 
@@ -132,6 +134,14 @@ key set & full set
 # co-expression analysis
 
 something can be done by the way
+
+
+
+# Visualisation of the results
+
+Scatter plot
+
+Heatmap
 
 
 

@@ -237,7 +237,99 @@ for (i in clusters){
 
 pheatmap(logcounts(tmp_group)[common_marker_group[[1]],], show_colnames = F)
 
-simulate_data <- function(logExpr=10, ngene=10, ncell=10, show_matrix=T, show_name=T){
+simulate_data2 <- function(logExpr=10, ngene=20, ncell=10, show_matrix=T, show_name=T){
+  totalGene <- ngene*9
+  totalCell <- ncell*4
+  expr_matrix <- matrix(rep(0,totalGene*totalCell), nrow=totalGene, ncol=totalCell)
+  # MT1
+  for (i in 1:ngene) {
+    for (j in 1:ncell) {
+      expr_matrix[i,j] <- logExpr
+    }
+  }
+  for (i in (ngene*4+1):(ngene*5)) {
+    for (j in (ncell*3+1):(ncell*4)) {
+      expr_matrix[i,j] <- logExpr
+    }
+  }
+  # MT1'
+  for (i in (ngene+1):(ngene*2)) {
+    for (j in (ncell+1):totalCell) {
+      expr_matrix[i,j] <- logExpr
+    }
+  }
+  # MT1''
+  for (i in (ngene*2+1):(ngene*3)) {
+    for (j in (ncell+1):(ncell*2)) {
+      expr_matrix[i,j] <- logExpr/sqrt(i-ngene*2)
+    }
+  }
+  # MT1'''
+  for (i in (ngene*3+1):(ngene*4)) {
+    for (j in (ncell*2+1):(ncell*3)) {
+      expr_matrix[i,j] <- logExpr/sqrt(j-ncell*2)
+    }
+  }
+  # MT2
+  for (i in (ngene*5+1):(ngene*6)) {
+    for (j in (ncell*3+1-ncell/2):(ncell*4-ncell/2)) {
+      expr_matrix[i,j] <- logExpr/sqrt(2*abs(j-((ncell*3+1-ncell/2+ncell*4-ncell/2))/2))
+    }
+  }
+  # MT3
+  for (i in (ngene*6+1):(ngene*7)) {
+    for (j in (ncell*0+1):(ncell*1)) {
+      expr_matrix[i,j] <- logExpr/2
+    }
+  }
+  for (i in (ngene*6+1):(ngene*7)) {
+      expr_matrix[i,] <- expr_matrix[i,] + logExpr/2
+  }
+  # MT4
+  for (i in (ngene*7+1):(ngene*8)) {
+    for (j in (ncell*0+1):(totalCell)) {
+      expr_matrix[i,j] <- logExpr/sqrt(1+abs(j-totalCell))
+    }
+  }
+  # MT4'
+  for (i in (ngene*8+1):(ngene*9)) {
+    for (j in (ncell*0+1):(totalCell)) {
+      expr_matrix[i,j] <- logExpr/sqrt(j)
+    }
+  }
+  options(stringsAsFactors = F)
+  expr_matrix <- as.data.frame(expr_matrix)
+  annotation_col <- data.frame(cluster=colnames(expr_matrix), row.names = colnames(expr_matrix))
+  annotation_col[(ncell*0+1):(ncell*1),] <- "Subtype1"
+  annotation_col[(ncell*1+1):(ncell*2),] <- "Subtype2"
+  annotation_col[(ncell*2+1):(ncell*3),] <- "Subtype3"
+  annotation_col[(ncell*3+1):(ncell*4),] <- "Subtype4"
+  annotation_row <- data.frame(markerType=rownames(expr_matrix), row.names = rownames(expr_matrix))
+  annotation_row[(ngene*0+1):(ngene*1),] <- "MT1"
+  annotation_row[(ngene*1+1):(ngene*2),] <- "MT1-neg"
+  annotation_row[(ngene*2+1):(ngene*3),] <- "MT1'"
+  annotation_row[(ngene*3+1):(ngene*4),] <- "MT1''"
+  annotation_row[(ngene*4+1):(ngene*5),] <- "MT1"
+  annotation_row[(ngene*5+1):(ngene*6),] <- "MT2-intermediate"
+  annotation_row[(ngene*6+1):(ngene*7),] <- "MT3"
+  annotation_row[(ngene*7+1):(ngene*8),] <- "MT4"
+  annotation_row[(ngene*8+1):(ngene*9),] <- "MT4'"
+  library(RColorBrewer)
+  annotation_colors1 <- brewer.pal(4,"Set1")
+  names(annotation_colors1) <- c("Subtype1", "Subtype2", "Subtype3", "Subtype4")
+  annotation_colors2 <- brewer.pal(8,"Set3")
+  names(annotation_colors2) <- c("MT1", "MT1-neg", "MT1'", "MT1''", "MT2-intermediate", "MT3", "MT4", "MT4'")
+  if (show_matrix){
+    library(pheatmap)
+    pheatmap(expr_matrix, cluster_rows = F, cluster_cols = F, show_rownames = F, show_colnames = F, annotation_col = annotation_col, annotation_row = annotation_row, annotation_colors=list(cluster=annotation_colors1 , markerType=annotation_colors2), annotation_names_row=F, annotation_names_col = F)
+  }
+  rownames(expr_matrix) <- 1:totalGene
+  colnames(expr_matrix) <- 1:totalCell
+
+  return(expr_matrix)
+}
+
+simulate_data2 <- function(logExpr=10, ngene=20, ncell=10, show_matrix=T, show_name=T){
   ideal_matrix <- as.data.frame(matrix(rep(logExpr,ngene*ncell), nrow=ngene, ncol=ncell))
   rownames(ideal_matrix) <- ((ngene*0+1):(ngene*1))
   colnames(ideal_matrix) <- ((ncell*0+1):(ncell*1))

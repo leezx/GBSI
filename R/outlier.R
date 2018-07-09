@@ -55,50 +55,6 @@ epsDetectionCor <- function(disMatrix=dis_matrix_dist, start=0, end=1, step=10, 
   return(c(as.double(names(allClusterCount[maxStart-1])), as.double(names(allClusterCount[maxStart+1]))))
 }
 
-outlierDetection <- function(M=logcounts(tmp_group), pcNum=100, method="prcomp", minPts=5, percent=0.05, plot=T){
-  exprMatrix <- t(M)
-  exprMatrix <- exprMatrix[,colSums(exprMatrix)>0]
-  pcMatrix <- 0
-  start_time <- Sys.time()
-  if (method=="prcomp"){
-    prin_comp <- prcomp(exprMatrix, scale. = T, center = T)
-    pcMatrix <- prin_comp$x[,1:pcNum]
-    } else if (method=="pcaMethods"){
-      library(pcaMethods)
-      prin_comp <- pca(exprMatrix, scale = "uv", center = T, nPcs = pcNum, method = "svd")
-      pcMatrix <- prin_comp@scores[,1:pcNum]
-    }
-    end_time <- Sys.time()
-    print("matrix size: ")
-    print(dim(M)) 
-    print(paste("pcNum: ", pcNum, ",method: ", method))
-    print(end_time - start_time)
-    # return(pcMatrix)
-    # parallelDist
-    library(parallelDist)
-    dis_matrix <- parDist(x = as.matrix(pcMatrix), method = "euclidean", threads=3)
-    dis_matrix <- as.matrix(dis_matrix)
-    dis_matrix[is.na(dis_matrix)] <- 0
-    rownames(dis_matrix) <- rownames(pcMatrix)
-    colnames(dis_matrix) <- rownames(dis_matrix)
-    disOrder <- sort(apply(dis_matrix, 2, function(x) {return(mean(sort(x)[1:5]))}), decreasing=T)
-    outlier <- disOrder[1:(length(disOrder)*percent)]
-    pca <- as.data.frame(pcMatrix)
-    pca$cluster <- 1
-    pca[outlier,]$cluster <- 0
-    # DBSCAN
-    # eps <- epsDetection(pcMatrix)
-    #eps2 <- epsDetection(pcMatrix, start=eps[1], end = eps[2], primary = F, fold = 1)
-    #res <- dbscan(pcMatrix, eps = eps2, minPts = minPts) 
-    # rownames(winePCAmethods@scores)[res$cluster==0]
-    #pca <- as.data.frame(pcMatrix)
-    pca$cluster <- as.character(pca$cluster)
-    if (plot) {
-      library(ggplot2)
-      print(ggplot(pca, aes(x=PC1, y=PC2, color=cluster)) + geom_point())}
-    return(pca)
-}
-
 centerDetection <- function(corM=dis_matrix, genelist=genelist){
   if (length(genelist)==1) {
     # print("WARN: only one gene in genelist!")

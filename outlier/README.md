@@ -100,6 +100,7 @@ function (x, makeplot = FALSE, explvar = 0.99, crit.M1 = 1/3,
     if (any(x.mad == 0)) 
         stop("More than 50% equal values in one or more variables!")
     x.sc <- scale(x, apply(x, 2, median), x.mad)
+    x.sc <- 
     x.svd <- svd(scale(x.sc, TRUE, FALSE))
     a <- x.svd$d^2/(n - 1)
     p1 <- (1:p)[(cumsum(a)/sum(a) > explvar)][1]

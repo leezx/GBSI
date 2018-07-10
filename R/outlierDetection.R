@@ -8,6 +8,9 @@ source("/Users/surgery/Project/HOME/myScript/zxli_lib.R") # my R lib
 # git clone https://github.com/hemberg-lab/scRNA.seq.course.git
 
 load("/Users/surgery/Downloads/Supplementary_Software/R/data/Test_3_Pollen.RData")
+# Test_3_Pollen$results$y$cluster)
+# Test_3_Pollen$true_labs
+# Test_3_Pollen$in_X
 
 deng <- readRDS("/Users/surgery/Project/HOME/github/scRNA.seq.course/deng/deng-reads.rds")
 scater::plotPCA(deng, exprs_values = "logcounts", colour_by="cell_type1")
@@ -17,6 +20,7 @@ geneCountPerCell <- colSums(Test_3_Pollen$in_X>0)
 totalReadCount <- colSums(Test_3_Pollen$in_X)
 cvPerGene <- apply(Test_3_Pollen$in_X, 1, sd)/apply(Test_3_Pollen$in_X, 1, mean)
 
+expr <- logcounts(tmp_group)
 expr <- Test_3_Pollen$in_X
 expr <- logcounts(deng)
 expr <- expr[rowSums(expr>0)>3,]
@@ -97,18 +101,23 @@ buildGeneNetworkCor <- function(expr=Test_3_Pollen$in_X, thred=0, method="spearm
   return(corMatrix)
 }
 
-outlierDetection <- function(M=expr, pcNum=100, method="prcomp", minPts=4, percent=0.05, threads=1, plot=T){
+# expr2 <- expr[,!colnames(expr)%in%c(c4n, c8n, c11n)]
+save(expr2, file = "expr2.Rdata")
+truel <- Test_3_Pollen$true_labs$V1[!colnames(expr)%in%c(c4n, c8n, c11n)]
+simlrl <- Test_3_Pollen$results$y$cluster[!colnames(expr)%in%c(c4n, c8n, c11n)]
+outlierDetection <- function(M=expr2, pcNum=2, method="prcomp", minPts=4, percent=0.05, threads=1, plot=T){
   exprMatrix <- t(M)
   exprMatrix <- exprMatrix[,colSums(exprMatrix)>0]
   pcMatrix <- 0
   start_time <- Sys.time()
   if (method=="prcomp"){
-    prin_comp <- prcomp(exprMatrix, scale. = T, center = T)
-    if (pcNum < dim(prin_comp$x)[2]) {
-      pcMatrix <- prin_comp$x[,1:pcNum]
-    } else if (pcNum > dim(prin_comp$x)[2]) {
-      print("ERROR: please choose a smaller pcNum!!!")
-    } else { pcMatrix <- prin_comp$x }
+    prin_comp <- prcomp(exprMatrix, scale. = T, center = T, rank. = pcNum)
+    pcMatrix <- prin_comp$x
+    #if (pcNum < dim(prin_comp$x)[2]) {
+    #  pcMatrix <- prin_comp$x[,1:pcNum]
+    #} else if (pcNum > dim(prin_comp$x)[2]) {
+    #  print("ERROR: please choose a smaller pcNum!!!")
+    #} else { pcMatrix <- prin_comp$x }
   } else if (method=="pcaMethods"){
     library(pcaMethods)
     prin_comp <- pca(exprMatrix, scale = "uv", center = T, nPcs = pcNum, method = "svd")
@@ -122,26 +131,58 @@ outlierDetection <- function(M=expr, pcNum=100, method="prcomp", minPts=4, perce
   # return(pcMatrix)
   # parallelDist
   library(parallelDist)
-  dis_matrix <- parDist(x = as.matrix(pcMatrix), method = "euclidean", threads=threads)
+  # dis_matrix <- parDist(x = as.matrix(pcMatrix), method = "euclidean", threads=threads)
+  dis_matrix <- parDist(x = as.matrix(pcMatrix), method = "mahalanobis", threads=threads)
   dis_matrix <- as.matrix(dis_matrix)
   dis_matrix[is.na(dis_matrix)] <- 0
   rownames(dis_matrix) <- rownames(pcMatrix)
   colnames(dis_matrix) <- rownames(dis_matrix)
-  disOrder <- sort(apply(dis_matrix, 2, function(x) {return(mean(sort(x)[1:minPts]))}), decreasing=T)
+  disOrder <- sort(apply(dis_matrix, 2, function(x) {return(mean(sort(x)[(minPts+1)]))}), decreasing=T)
+  # plot(disOrder)
+  # hist(disOrder, breaks = 20)
   outlier <- disOrder[1:(length(disOrder)*percent)]
   pca <- as.data.frame(pcMatrix)
-  pca$cluster <- 1
-  pca[names(outlier),]$cluster <- 0
+  pca$outlier <- "NO"
+  pca[names(outlier),]$outlier <- "YES"
+  pca$outlier <- as.character(pca$outlier)
+  # for simulate
+  pca$groundTruth <- as.character(truel)
+  pca$mvoutlier <- "NO"
+  pca[!as.logical(outliers$wfinal01),]$mvoutlier <- "YES"
+  # pca$SIMLR <- as.character(simlrl)
+  # get x smallest 4: 1
+  # c4 <- pca[pca$true=="4",]
+  # c4n <- rownames(c4[order(c4$PC1, decreasing = F),][2:26,])
+  # get y largest 8: 2
+  # c8 <- pca[pca$true=="8",]
+  # c8n <- rownames(c8[order(c8$PC2, decreasing = T),][3:42,])
+  # get x largest 11: 5
+  # c11 <- pca[pca$true=="11",]
+  # c11n <- rownames(c11[order(c11$PC1, decreasing = T),][5:24,])
+  # simulate data, remove some cells
+  # pca2 <- pca[!rownames(pca)%in%c(c4n, c8n, c11n),]
   # DBSCAN
   # eps <- epsDetection(pcMatrix)
   #eps2 <- epsDetection(pcMatrix, start=eps[1], end = eps[2], primary = F, fold = 1)
   #res <- dbscan(pcMatrix, eps = eps2, minPts = minPts) 
   # rownames(winePCAmethods@scores)[res$cluster==0]
   #pca <- as.data.frame(pcMatrix)
-  pca$cluster <- as.character(pca$cluster)
   if (plot) {
     library(ggplot2)
-    print(ggplot(pca, aes(x=PC1, y=PC2, color=cluster)) + geom_point())}
+    library(RColorBrewer)
+    print(ggplot(pca, aes(x=PC1, y=PC2, color=outlier)) + 
+            geom_point(size=2.5, alpha=1) + 
+            theme_bw() + 
+            theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_blank()) +
+            scale_color_manual(values=brewer.pal(11,"Paired")[1:11]) )
+    } # for cluster, c("#B2DF8A","#1F78B4"); #
   return(pca)
 }
 
+expr3 <- expr2[rowSums(expr2>0)>3600,]
+outliers <- mvoutlier::pcout(pcMatrix, makeplot = FALSE,
+                             explvar = 0.5, crit.M1 = 0.9,
+                             crit.c1 = 5, crit.M2 = 0.9,
+                             crit.c2 = 0.99, cs = 0.25,
+                             outbound = 0.05)
+!as.logical(outliers$wfinal01)

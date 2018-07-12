@@ -202,7 +202,7 @@ fullModuleDetectionCenter <- function(corM=dis_matrix, marker_result=marker_resu
 }
 
 # densityDf <- highDensityCenterDetection()
-fullModuleDetectionSum <- function(corM=dis_matrix, localCenters=densityDf, minModuleGene=5){
+fullModuleDetectionSum <- function(corM=dis_matrix, localCenters=rownames(densityDf), minModuleGene=5, cutThresd=disThresd){
   moduleResult <- list()
   moduleResultbak <- list()
   count <- 1
@@ -218,7 +218,7 @@ fullModuleDetectionSum <- function(corM=dis_matrix, localCenters=densityDf, minM
       print(paste(center, "is duplicated center!", sep=" "))
       next}
     j <- j+1
-    genelist <- singleModuleDetectionSum(corM=corM, center=center, cutThresd=0.6, centerBlackList=centerBlackList, topCount=100)
+    genelist <- singleModuleDetectionSum(corM=corM, center=center, cutThresd=cutThresd, centerBlackList=centerBlackList, topCount=100)
     if (length(intersect(genelist, centerBlackList)) > 0) {
       moduleResultbak[[count2]] <- genelist
       count2 <- count2 + 1
@@ -274,8 +274,8 @@ fullModuleDetectionSum <- function(corM=dis_matrix, localCenters=densityDf, minM
   rownames(moduleResultDf) <- moduleResultDf$gene
 
   # moduleResultDf["EBF1",]
-  gene <- a
-  moduleResultDf[gene[gene%in%moduleResultDf$gene],]
+  # gene <- a
+  # moduleResultDf[gene[gene%in%moduleResultDf$gene],]
   return(moduleResultDf)
 }
 
@@ -327,6 +327,7 @@ localCenterDetection <- function(corM=dis_matrix, disThresd=disThresd){
   densityDf <- as.data.frame(densityDf)
   densityDf$centrality <- apply(densityDf, 1, function(x) {return(sum(log(1+x) * (1-seq(0.05,disThresd,by=0.05))))})
   densityDf <- densityDf[order(densityDf$centrality, decreasing=T),]
+  # how to merge the duplicated
   # a <- data.frame(x=names(densityDf[1,]), y=as.integer(densityDf[1,]))
   # a <- a[1:13,]
   # a$x <- as.double(a$x)
@@ -352,15 +353,21 @@ cellOrderInference <- function(expr=exprZscore, module=moduleResultDf[moduleResu
   exprM <- expr[module,]
   # sign <- cor_matrix_spearman[module,module[1]] < 0 
   # exprM[sign,] <- exprM[sign,]*(-1)
-  cellOrder <- sort(colSums(exprM))
-  plot(cellOrder)
+  cellOrder <- sort(apply(exprM, 2, mean))
+  cellOrderdf <- data.frame(as.vector(cellOrder))
+  library(breakpoint)
+  breakpoint.loc <- CE.Normal.MeanVar(cellOrderdf, Nmax=1)$BP.Loc-1
+  plot(cellOrder, xlab="sorted cells", ylab="mean expression of the module")
+  abline(v=breakpoint.loc, col="red")
   # pheatmap(logcounts(tmp_group)[moduleResult[[1]],names(cellOrder)], show_colnames = F, cluster_rows = T, cluster_cols = F)
-  return(names(cellOrder))
+  return(list(cellOrder=names(cellOrder), breakpoint=breakpoint.loc))
 }
 
 # pdf(sprintf('results/%s_maturation_trajectory.pdf', result.bn), width = 7, height = 5)
 
+# setwd('D:\\2.Code\\github\\MBSIT\\R')
 expr <- logcounts(tmp_group)
+expr <- expr_matrix
 exprZscore <- (expr-apply(expr, 1, mean))/apply(expr, 1, sd)
 # for (i in 1:length(moduleResult)){
 pdf('moduleResult.pdf')
@@ -368,8 +375,9 @@ library(pheatmap)
 for (i in unique(moduleResultDf$module)) {
   # pheatmap(expr[moduleResult[[i]],], show_colnames = F, cluster_rows = T)
   module <- moduleResultDf[moduleResultDf$module==i,]$gene
-  cellOrder <- cellOrderInference(exprZscore, module)
-  pheatmap(expr[module,cellOrder], show_colnames = F, cluster_rows = T, cluster_cols = F)
+  cellOrder <- cellOrderInference(exprZscore, module)$cellOrder
+  breakpoint.loc <- cellOrderInference(exprZscore, module)$breakpoint
+  pheatmap(expr[module,cellOrder], show_colnames = F, cluster_rows = T, cluster_cols = F, show_rownames = F)
 }
 dev.off()
 
@@ -379,6 +387,7 @@ result <- outlierDetection(M=logcounts(tmp_group))
 table(tmp_group[,result$cluster==0]$rename_sc3_4)
 tmp_group <- tmp_group[,result$cluster!=0]
 expr_log3 <- t(logcounts(tmp_group))
+expr_log3 <- t(expr_matrix)
 # overlap
 # expr_log4 <- apply(expr_log3>=1,2,function(x) {storage.mode(x) <- 'integer'; x})
 # geneOverlap <- t(expr_log4) %*% expr_log4 
@@ -390,14 +399,15 @@ library(WGCNA)
 # cor_matrix_pearson <- WGCNA::cor(x = as.matrix((expr_log3)), method = "pearson")
 cor_matrix_spearman <- WGCNA::cor(x = as.matrix((expr_log3)), method = "spearman")
 
-# cor_matrix_spearman[cor_matrix_spearman<0] <- 0
+cor_matrix_spearman[cor_matrix_spearman<0] <- 0
 dis_matrix <- 1 - abs(cor_matrix_spearman)
 
 dis_matrix[is.na(dis_matrix)] <- 1
 dis_matrix[row(dis_matrix)==col(dis_matrix)] <- 1
 # dis_matrix <- dis_matrix[use.gene, use.gene]
 minPerRow <- apply(dis_matrix, 2, min)
-disThresd <- quantile(minPerRow, probs = seq(0, 1, 0.25))[2]
+# consider how to evaluate this value
+disThresd <- quantile(minPerRow, probs = seq(0, 1, 0.25))[3]
 dis_matrix <- dis_matrix[names(minPerRow[minPerRow < disThresd]),names(minPerRow[minPerRow < disThresd])]
 # dis_matrix_dist <- as.dist(dis_matrix)
 

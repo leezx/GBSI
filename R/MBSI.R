@@ -311,6 +311,7 @@ simulate_data2 <- function(logExpr=10, ngene=20, ncell=10, show_matrix=T, show_n
     tmp_mean <- sample(1:logExpr, 1)
     tmp_sd <- sample(seq(1,3,by=0.3), 1)
     expr_matrix[i,] <- rnorm(totalCell, mean = tmp_mean, sd = tmp_sd)
+    # hist(rnorm(1000,10,3),breaks = 100)
   }
   # Noise2
   for (i in (ngene*10+1):(ngene*11)) {
@@ -319,6 +320,7 @@ simulate_data2 <- function(logExpr=10, ngene=20, ncell=10, show_matrix=T, show_n
     tmp_lambda <- sample(seq(1,10,by=1), 1)
     tmp_omega <- sample(seq(0,1,by=0.1), 1)
     expr_matrix[i,] <- rzinb(totalCell, tmp_k, tmp_lambda, tmp_omega)
+    # hist(rzinb(1000, 10, 50, 0.5))
   }
   rownames(expr_matrix) <- 1:totalGene
   colnames(expr_matrix) <- 1:totalCell
@@ -363,6 +365,27 @@ simulate_dropout <- function(expr_matrix, dropoutRate=0.1) {
     expr_matrix[i,randomCells] <- 0
   }
   return(expr_matrix)
+}
+
+show_correlation <- function(expr_matrix, method="pearson") {
+  #library(WGCNA)
+  corMatrix <- cor(x = as.matrix(t(expr_matrix)), method = method)
+  corMatrix[is.na(corMatrix)] <- 0
+  annotation_row <- data.frame(markerType=rownames(corMatrix), row.names = rownames(corMatrix))
+  annotation_row[(ngene*0+1):(ngene*1),] <- "MT1"
+  annotation_row[(ngene*1+1):(ngene*2),] <- "MT1-neg"
+  annotation_row[(ngene*2+1):(ngene*3),] <- "MT1'"
+  annotation_row[(ngene*3+1):(ngene*4),] <- "MT1''"
+  annotation_row[(ngene*4+1):(ngene*5),] <- "MT1"
+  annotation_row[(ngene*5+1):(ngene*6),] <- "MT2-intermediate"
+  annotation_row[(ngene*6+1):(ngene*7),] <- "MT3"
+  annotation_row[(ngene*7+1):(ngene*8),] <- "MT4"
+  annotation_row[(ngene*8+1):(ngene*9),] <- "MT4'"
+  annotation_row[(ngene*9+1):(ngene*10),] <- "Noise1"
+  annotation_row[(ngene*10+1):(ngene*11),] <- "Noise2"
+  # 700 X 500
+  pheatmap(corMatrix, cluster_rows = F, cluster_cols = F, show_rownames = F, show_colnames = F, annotation_col = annotation_row, annotation_row = annotation_row, annotation_colors=list(markerType=annotation_colors2), annotation_names_row=F, annotation_names_col = F, color=colorRampPalette(rev(brewer.pal(n = 7, name ="RdBu")))(100))
+  # color = colorRampPalette(c("dark blue", "blue", "white", "orange", "red"))(100)
 }
 
 simulate_data2 <- function(logExpr=10, ngene=20, ncell=10, show_matrix=T, show_name=T){

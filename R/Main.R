@@ -2,11 +2,11 @@ setwd("/Users/surgery/Project/HOME/github/MBSIT/R")
 load("/Users/surgery/Project/HOME/1-projects/1.scRNA-seq/2-smart-seq/eachGroup/HSCR_5c3.Rdata")
 options(stringsAsFactors = F)
 
-cellCountPerGene <- rowSums(counts(tmp_group)>=5)
-geneCountPerCell <- colSums(counts(tmp_group)>=5)
-totalReadCount <- colSums(counts(tmp_group))
-cvPerGene <- apply(counts(tmp_group), 1, sd)/apply(counts(tmp_group), 1, mean)
-# cvPerCell <- apply(counts(tmp_group), 2, sd)/apply(counts(tmp_group), 2, mean)
+# cellCountPerGene <- rowSums(counts(tmp_group)>=5)
+# geneCountPerCell <- colSums(counts(tmp_group)>=5)
+# totalReadCount <- colSums(counts(tmp_group))
+# cvPerGene <- apply(counts(tmp_group), 1, sd)/apply(counts(tmp_group), 1, mean)
+# ### cvPerCell <- apply(counts(tmp_group), 2, sd)/apply(counts(tmp_group), 2, mean)
 
 epsDetection <- function(pcMatrix=mypcMatrix, start=1, end=100, fold=5, primary=T, minPts=10, percent=0.05, plot=T){
   # DBSCAN
@@ -231,10 +231,11 @@ fullModuleDetectionSum <- function(corM=dis_matrix, localCenters=rownames(densit
   # for (i in 1:totalLength) {
   for (center in localCenters) {
     if (center%in%centerBlackList) {
-      print(paste(center, "is duplicated center!", sep=" "))
+      print(paste("center: ", center, "is in centerBlackList!", sep=" "))
       next}
     j <- j+1
     genelist <- singleModuleDetectionSum(corM=corM, center=center, cutThresd=cutThresd, centerBlackList=centerBlackList, topCount=100)
+    # genelist has duplicate with exsiting moduleResult
     if (length(intersect(genelist, centerBlackList)) > 0) {
       moduleResultbak[[count2]] <- genelist
       count2 <- count2 + 1
@@ -246,6 +247,85 @@ fullModuleDetectionSum <- function(corM=dis_matrix, localCenters=rownames(densit
       count <- count + 1
     }
   }
+  # merge moduleResultbak to moduleResult
+  for (i in 1:length(moduleResultbak)) {
+    for (j in 1:length(moduleResult)){
+      if (length(intersect(moduleResult[[j]], moduleResultbak[[i]]))){
+        moduleResult[[j]] <- unique(c(moduleResult[[j]], moduleResultbak[[i]]))
+      }
+    }
+  }
+  # moduleResultMerge <- list()
+  count <- 1
+  overlapPair <- list()
+  for (i in 1:length(moduleResult)) {
+    for (j in 1:length(moduleResult)){
+      if (i >= j) {next}
+      if ((length(intersect(moduleResult[[j]], moduleResult[[i]]))/(min(length(moduleResult[[j]]), length(moduleResult[[i]]))))>0.5) {
+        #moduleResultMerge[[count]] <- unique(c(moduleResult[[j]], moduleResult[[i]]))
+        overlapPair[[count]] <- c(i, j)
+        count <- count + 1
+      } 
+    }
+  }
+  if (length(overlapPair)>0) {
+    for (i in 1:length(overlapPair)) {
+    start <- overlapPair[[i]][1]
+    end <- overlapPair[[i]][2]
+    moduleResult[[start]] <- unique(c(moduleResult[[start]], moduleResult[[end]]))
+    }
+    for (i in 1:length(overlapPair)) {
+      end <- overlapPair[[i]][2]
+      moduleResult[[end]] <- NULL
+    }
+  }
+  
+  moduleResultDf <- data.frame()
+  for (i in 1:length(moduleResult)){
+    if (length(moduleResult[[i]]) < minModuleGene) {next}
+    for (j in moduleResult[[i]]) { 
+      moduleResultDf <- rbind(moduleResultDf, c(j, i))
+    }
+  }
+  colnames(moduleResultDf) <- c("gene", "module")
+  moduleResultDf <- moduleResultDf[!duplicated(moduleResultDf$gene),]
+  rownames(moduleResultDf) <- moduleResultDf$gene
+
+  # moduleResultDf["EBF1",]
+  # gene <- a
+  # moduleResultDf[gene[gene%in%moduleResultDf$gene],]
+  return(moduleResultDf)
+}
+
+fullModuleDetectionSum2 <- function(corM=dis_matrix, localCenters=rownames(densityDf), topGene=20, minModuleGene=5, cutThresd=disThresd){
+  moduleResult <- list()
+  moduleResultbak <- list()
+  count <- 1
+  count2 <- 1
+  #count2 <- 0
+  j <- 0
+  #totalCount <- dim(corM)[1]
+  centerBlackList <- c()
+  totalLength <- length(localCenters)
+  # for (i in 1:totalLength) {
+  for (center in localCenters) {
+    if (center%in%centerBlackList) {
+      print(paste(center, "is duplicated center!", sep=" "))
+      next}
+    j <- j+1
+    genelist <- singleModuleDetectionSum(corM=corM, center=center, cutThresd=cutThresd, centerBlackList=centerBlackList, topCount=10)
+    # if (length(intersect(genelist, centerBlackList)) > 0) {
+    #   moduleResultbak[[count2]] <- genelist
+    #   count2 <- count2 + 1
+    #   next
+    # }
+    centerBlackList <- unique(c(centerBlackList, genelist))
+    if (length(genelist) >= 5){
+      moduleResult[[count]] <- genelist
+      count <- count + 1
+    }
+  }
+  # 
   for (i in 1:length(moduleResultbak)) {
     for (j in 1:length(moduleResult)){
       if (length(intersect(moduleResult[[j]], moduleResultbak[[i]]))){
@@ -339,9 +419,9 @@ localCenterDetection <- function(corM=dis_matrix, disThresd=disThresd){
   }
   colnames(densityDf) <- as.character(seq(0.05,disThresd,by=0.05))
   # densityDf <- densityDf[densityDf$`0.7` > 5,]
-  densityDf <- densityDf[apply(densityDf, 1, max) > 5,]
+  densityDf <- densityDf[apply(densityDf, 1, max) > 2,]
   densityDf <- as.data.frame(densityDf)
-  densityDf$centrality <- apply(densityDf, 1, function(x) {return(sum(log(1+x) * (1-seq(0.05,disThresd,by=0.05))))})
+  densityDf$centrality <- apply(densityDf, 1, function(x) {return(sum(log10(1+x) * (max(seq(0.05,disThresd+0.05,by=0.05))-seq(0.05,disThresd,by=0.05))))})
   densityDf <- densityDf[order(densityDf$centrality, decreasing=T),]
   # how to merge the duplicated
   # a <- data.frame(x=names(densityDf[1,]), y=as.integer(densityDf[1,]))
@@ -352,6 +432,32 @@ localCenterDetection <- function(corM=dis_matrix, disThresd=disThresd){
   # plot(a, type="b", col="blue", xlab="1-k", ylab="log2(1+count(i))", main="Centrality of CLDN6")
   # write.csv(densityDf, file = "densityDf.csv")
   return(rownames(densityDf))
+}
+
+coreMarkerDetection <- function(corM=dis_matrix, exprM=expr_log3, densityDf=densityDf, overlap=0.8) {
+  #exprM2 <- apply(exprM[,rownames(densityDf)]>=1,2,function(x) {storage.mode(x) <- 'integer'; x})
+  #geneOverlap <- t(exprM2) %*% exprM2 
+  densityDf$gene <- rownames(densityDf)
+  blackList <- c()
+  for (i in 1:dim(densityDf)[1]) {
+    tmp_gene_list <- c()
+    geneA <- densityDf[i,]$gene
+    for (j in 1:dim(densityDf)[1]) {
+      if (i >= j) {next}
+      geneB <- densityDf[j,]$gene
+      overlapPercentRaw <- table(colSums(corM[c(geneA, geneB),] < 0.5))
+      if (is.na(overlapPercentRaw["2"])) {next}
+      overlapPercent <- overlapPercentRaw["2"]/(overlapPercentRaw["1"]+overlapPercentRaw["2"])
+      if (overlapPercent >= overlap) { 
+        tmp_gene_list <- c(tmp_gene_list, geneB)
+        blackList <- c(blackList, geneB)
+        }
+    }
+    if (geneA %in% blackList) {next}
+    blackList <- c(blackList, geneA)
+    print(tmp_gene_list)
+  }
+
 }
 
 sortmoduleResult <- function(corM, moduleResult=moduleResult){
@@ -382,10 +488,12 @@ for (i in unique(moduleResultDf$module)) {
 dev.off()
 
 
-# mian code
+# main code
 result <- outlierDetection(M=logcounts(tmp_group))
 table(tmp_group[,result$cluster==0]$rename_sc3_4)
 tmp_group <- tmp_group[,result$cluster!=0]
+
+# 
 expr_log3 <- t(logcounts(tmp_group))
 expr_log3 <- t(expr_matrix)
 # overlap
@@ -407,7 +515,10 @@ dis_matrix[row(dis_matrix)==col(dis_matrix)] <- 1
 # dis_matrix <- dis_matrix[use.gene, use.gene]
 minPerRow <- apply(dis_matrix, 2, min)
 # consider how to evaluate this value
-disThresd <- quantile(minPerRow, probs = seq(0, 1, 0.25))[2]
+disThresd <- quantile(minPerRow, probs = seq(0, 1, 0.1))[2]
+#         0%        25%        50%        75%       100% 
+# 0.06675682 0.65125326 0.72883328 0.76764952 0.82801885
+dis_matrix2 <- dis_matrix
 dis_matrix <- dis_matrix[names(minPerRow[minPerRow < disThresd]),names(minPerRow[minPerRow < disThresd])]
 # dis_matrix_dist <- as.dist(dis_matrix)
 

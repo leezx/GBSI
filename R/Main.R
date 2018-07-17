@@ -87,6 +87,7 @@ singleModuleDetectionCenter <- function(corM=dis_matrix, overlapM=geneOverlap,ce
 }
 
 singleModuleDetectionSum <- function(corM=dis_matrix, center=center, topCount=100, corThresd=0.5, cutThresd=0.6, centerBlackList=c()){
+  # consider the densityDf
   genelist <- c(center)
   centerBlackList=c(centerBlackList, center)
   while (length(genelist) < topCount) {
@@ -298,8 +299,9 @@ fullModuleDetectionSum <- function(corM=dis_matrix, localCenters=rownames(densit
   return(moduleResultDf)
 }
 
-localCentersDetection <- function(corM=dis_matrix, localCenters=rownames(densityDf), topGene=10, minModuleGene=8, cutThresd=disThresd){
+localCentersDetection <- function(corM=dis_matrix, densityDf=densityDf, topGene=10, minModuleGene=8, cutThresd=disThresd){
   #corMsub <- corM[localCenters,localCenters]
+  localCenters=rownames(densityDf)
   moduleResult <- list()
   moduleResultbak <- list()
   count <- 1
@@ -329,10 +331,14 @@ localCentersDetection <- function(corM=dis_matrix, localCenters=rownames(density
       count <- count + 1
     }
   }
+  return(moduleResult)
+}
+
+transferListToDf <- function(moduleResult=moduleResult) {
   # transfer to dataframe
   moduleResultDf <- data.frame()
   for (i in 1:length(moduleResult)){
-    if (length(moduleResult[[i]]) < minModuleGene) {next}
+    #if (length(moduleResult[[i]]) < minModuleGene) {next}
     for (j in moduleResult[[i]]) { 
       moduleResultDf <- rbind(moduleResultDf, c(j, i))
     }
@@ -343,7 +349,35 @@ localCentersDetection <- function(corM=dis_matrix, localCenters=rownames(density
   return(moduleResultDf)
 }
 
-fullModuleDetectionAll <- function(corM=dis_matrix){
+fullModuleDetection <- function(corM=corM, moduleResult=moduleResult, cutThresd=cutThresd) {
+  moduleResultFull <- moduleResult
+  count <- 1
+  centerBlackList=c()
+  for (i in 1:length(moduleResultFull)) { 
+    genelist <- moduleResultFull[[count]]
+    fullGenelist <- colnames(corM)[colSums(corM[genelist,] < cutThresd) > length(genelist)/4]
+    fullGenelist <- fullGenelist[!fullGenelist%in%centerBlackList]
+    moduleResultFull[[count]] <- fullGenelist
+    centerBlackList <- c(centerBlackList, moduleResultFull)
+    count <- count + 1
+  }
+  return(moduleResultFull)
+}
+
+correctLocalCenters <- function(moduleResultFull=moduleResultFull, densityDf=densityDf) {
+  count <- 1
+  newModuleResult <- list()
+  for (i in 1:length(moduleResultFull)) { 
+    genelist <- moduleResultFull[[count]]
+    densityDfSub <- densityDf[genelist[genelist%in%rownames(densityDf)],]
+    densityDfSub <- densityDfSub[order(densityDfSub$centrality, decreasing=T),]
+    newModuleResult[[count]] <- rownames(densityDfSub)[1:10]
+    count <- count + 1
+  }
+  return(newModuleResult)
+}
+
+fullModuleDetectionAllHIDE <- function(corM=dis_matrix){
   moduleResult <- list()
   count <- 1
   count2 <- 0
@@ -441,6 +475,7 @@ sortmoduleResult <- function(corM, moduleResult=moduleResult){
 
 # pdf(sprintf('results/%s_maturation_trajectory.pdf', result.bn), width = 7, height = 5)
 
+moduleResultDf <- transferListToDf(moduleResult=newModuleResult)
 # setwd('D:\\2.Code\\github\\MBSIT\\R')
 expr <- logcounts(tmp_group)
 # expr <- expr_matrix2

@@ -208,17 +208,18 @@ cellOrderInference <- function(expr=exprZscore, module=moduleResultDf[moduleResu
   # sign <- cor_matrix_spearman[module,module[1]] < 0 
   # exprM[sign,] <- exprM[sign,]*(-1)
   cellOrder <- sort(apply(exprM, 2, mean))
-  cellOrderdf <- data.frame(as.vector(cellOrder))
-  library(breakpoint)
-  breakpoint.loc <- CE.Normal.MeanVar(cellOrderdf, Nmax=1)$BP.Loc-1
+  # cellOrderdf <- data.frame(as.vector(cellOrder))
+  # library(breakpoint)
+  # breakpoint.loc <- CE.Normal.MeanVar(cellOrderdf, Nmax=1)$BP.Loc-1
   plot(cellOrder, xlab="sorted cells", ylab="mean expression of the module")
   # abline(v=breakpoint.loc, col="red")
   # pheatmap(logcounts(tmp_group)[moduleResult[[1]],names(cellOrder)], show_colnames = F, cluster_rows = T, cluster_cols = F)
-  return(list(cellOrder=names(cellOrder), breakpoint=breakpoint.loc))
+  # return(list(cellOrder=names(cellOrder), breakpoint=breakpoint.loc))
+  return(names(cellOrder))
 }
 
 # densityDf <- highDensityCenterDetection()
-fullModuleDetectionSum <- function(corM=dis_matrix, localCenters=rownames(densityDf), minModuleGene=5, cutThresd=disThresd){
+fullModuleDetectionSum <- function(corM=dis_matrix, localCenters=rownames(densityDf), minModuleGene=8, cutThresd=disThresd){
   moduleResult <- list()
   moduleResultbak <- list()
   count <- 1
@@ -297,7 +298,8 @@ fullModuleDetectionSum <- function(corM=dis_matrix, localCenters=rownames(densit
   return(moduleResultDf)
 }
 
-fullModuleDetectionSum2 <- function(corM=dis_matrix, localCenters=rownames(densityDf), topGene=20, minModuleGene=5, cutThresd=disThresd){
+localCentersDetection <- function(corM=dis_matrix, localCenters=rownames(densityDf), topGene=10, minModuleGene=8, cutThresd=disThresd){
+  #corMsub <- corM[localCenters,localCenters]
   moduleResult <- list()
   moduleResultbak <- list()
   count <- 1
@@ -310,54 +312,24 @@ fullModuleDetectionSum2 <- function(corM=dis_matrix, localCenters=rownames(densi
   # for (i in 1:totalLength) {
   for (center in localCenters) {
     if (center%in%centerBlackList) {
-      print(paste(center, "is duplicated center!", sep=" "))
+      print(paste("new", center, "is duplicated center!", sep=" "))
       next}
     j <- j+1
-    genelist <- singleModuleDetectionSum(corM=corM, center=center, cutThresd=cutThresd, centerBlackList=centerBlackList, topCount=10)
-    # if (length(intersect(genelist, centerBlackList)) > 0) {
-    #   moduleResultbak[[count2]] <- genelist
-    #   count2 <- count2 + 1
-    #   next
-    # }
-    centerBlackList <- unique(c(centerBlackList, genelist))
-    if (length(genelist) >= 5){
+    genelist <- singleModuleDetectionSum(corM=corM, center=center, cutThresd=cutThresd, centerBlackList=centerBlackList, topCount=topGene)
+    # move all other genes to noise gene
+    # if (length(genelist)==1) {
+    genelist2 <- colnames(corM)[(corM[center,] <= cutThresd)]
+      # } else {
+      #   genelist2 <- colnames(corM)[colSums(corM[genelist,] <= cutThresd) > 0]
+      # }
+    centerBlackList <- unique(c(centerBlackList, genelist, genelist2))
+    # creat module
+    if (length(genelist) >= minModuleGene){
       moduleResult[[count]] <- genelist
       count <- count + 1
     }
   }
-  # 
-  for (i in 1:length(moduleResultbak)) {
-    for (j in 1:length(moduleResult)){
-      if (length(intersect(moduleResult[[j]], moduleResultbak[[i]]))){
-        moduleResult[[j]] <- unique(c(moduleResult[[j]], moduleResultbak[[i]]))
-      }
-    }
-  }
-  # moduleResultMerge <- list()
-  count <- 1
-  overlapPair <- list()
-  for (i in 1:length(moduleResult)) {
-    for (j in 1:length(moduleResult)){
-      if (i >= j) {next}
-      if ((length(intersect(moduleResult[[j]], moduleResult[[i]]))/(min(length(moduleResult[[j]]), length(moduleResult[[i]]))))>0.5) {
-        #moduleResultMerge[[count]] <- unique(c(moduleResult[[j]], moduleResult[[i]]))
-        overlapPair[[count]] <- c(i, j)
-        count <- count + 1
-      } 
-    }
-  }
-  if (length(overlapPair)>0) {
-    for (i in 1:length(overlapPair)) {
-    start <- overlapPair[[i]][1]
-    end <- overlapPair[[i]][2]
-    moduleResult[[start]] <- unique(c(moduleResult[[start]], moduleResult[[end]]))
-    }
-    for (i in 1:length(overlapPair)) {
-      end <- overlapPair[[i]][2]
-      moduleResult[[end]] <- NULL
-    }
-  }
-  
+  # transfer to dataframe
   moduleResultDf <- data.frame()
   for (i in 1:length(moduleResult)){
     if (length(moduleResult[[i]]) < minModuleGene) {next}
@@ -368,10 +340,6 @@ fullModuleDetectionSum2 <- function(corM=dis_matrix, localCenters=rownames(densi
   colnames(moduleResultDf) <- c("gene", "module")
   moduleResultDf <- moduleResultDf[!duplicated(moduleResultDf$gene),]
   rownames(moduleResultDf) <- moduleResultDf$gene
-
-  # moduleResultDf["EBF1",]
-  # gene <- a
-  # moduleResultDf[gene[gene%in%moduleResultDf$gene],]
   return(moduleResultDf)
 }
 
@@ -413,15 +381,17 @@ fullModuleDetectionAll <- function(corM=dis_matrix){
 }
 
 localCenterDetection <- function(corM=dis_matrix, disThresd=disThresd){
+  start <- disThresd/10
+  by <- disThresd/10
   densityDf <- data.frame(row.names=rownames(corM))
-  for (i in seq(0.05,disThresd,by=0.05)){
+  for (i in seq(start,disThresd,by=by)){
     densityDf <- cbind(densityDf, rowSums(corM<i))
   }
-  colnames(densityDf) <- as.character(seq(0.05,disThresd,by=0.05))
+  colnames(densityDf) <- as.character(seq(start,disThresd,by=by))
   # densityDf <- densityDf[densityDf$`0.7` > 5,]
   densityDf <- densityDf[apply(densityDf, 1, max) > 2,]
   densityDf <- as.data.frame(densityDf)
-  densityDf$centrality <- apply(densityDf, 1, function(x) {return(sum(log10(1+x) * (max(seq(0.05,disThresd+0.05,by=0.05))-seq(0.05,disThresd,by=0.05))))})
+  densityDf$centrality <- apply(densityDf, 1, function(x) {return(sum(log10(1+x) * (max(seq(start,disThresd+by,by=by))-seq(start,disThresd,by=by))))})
   densityDf <- densityDf[order(densityDf$centrality, decreasing=T),]
   # how to merge the duplicated
   # a <- data.frame(x=names(densityDf[1,]), y=as.integer(densityDf[1,]))
@@ -473,7 +443,7 @@ sortmoduleResult <- function(corM, moduleResult=moduleResult){
 
 # setwd('D:\\2.Code\\github\\MBSIT\\R')
 expr <- logcounts(tmp_group)
-# expr <- expr_matrix
+# expr <- expr_matrix2
 exprZscore <- (expr-apply(expr, 1, mean))/apply(expr, 1, sd)
 # for (i in 1:length(moduleResult)){
 pdf('moduleResult.pdf')
@@ -481,13 +451,14 @@ library(pheatmap)
 for (i in unique(moduleResultDf$module)) {
   # pheatmap(expr[moduleResult[[i]],], show_colnames = F, cluster_rows = T)
   module <- moduleResultDf[moduleResultDf$module==i,]$gene
-  cellOrder <- cellOrderInference(exprZscore, module)$cellOrder
-  breakpoint.loc <- cellOrderInference(exprZscore, module)$breakpoint
-  pheatmap(expr[module,cellOrder], show_colnames = F, cluster_rows = T, cluster_cols = F, show_rownames = F)
+  cellOrder <- cellOrderInference(expr=exprZscore, module=module)
+  #breakpoint.loc <- cellOrderInference(exprZscore, module)$breakpoint
+  pheatmap(exprZscore[module,cellOrder], show_colnames = F, cluster_rows = T, cluster_cols = F, show_rownames = T)
 }
 dev.off()
 
 
+#######################
 # main code
 result <- outlierDetection(M=logcounts(tmp_group))
 table(tmp_group[,result$cluster==0]$rename_sc3_4)

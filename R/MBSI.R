@@ -357,14 +357,15 @@ simulate_data2 <- function(logExpr=10, ngene=20, ncell=10, show_matrix=T, show_n
   return(expr_matrix)
 }
 
-simulate_dropout <- function(expr_matrix, dropoutRate=0.1) {
+simulate_dropout <- function(expr_matrix, dropoutRate=0.03) {
   geneCount <- dim(expr_matrix)[1]
   cellCount <- dim(expr_matrix)[2]
   for (i in 1:geneCount) {
-    randomCells <- sample(1:cellCount, as.integer(0.1*cellCount))
+    randomCells <- sample(1:cellCount, as.integer(dropoutRate*cellCount))
     expr_matrix[i,randomCells] <- 0
   }
   return(expr_matrix)
+  # 
 }
 
 show_correlation <- function(expr_matrix, method="pearson") {

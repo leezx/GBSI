@@ -1,6 +1,7 @@
 setwd("/Users/surgery/Project/HOME/github/MBSIT/R")
 load("/Users/surgery/Project/HOME/1-projects/1.scRNA-seq/2-smart-seq/eachGroup/HSCR_5c3.Rdata")
 options(stringsAsFactors = F)
+source("/Users/surgery/Project/HOME/myScript/zxli_lib.R")
 
 # cellCountPerGene <- rowSums(counts(tmp_group)>=5)
 # geneCountPerCell <- colSums(counts(tmp_group)>=5)
@@ -200,23 +201,6 @@ fullModuleDetectionCenter <- function(corM=dis_matrix, marker_result=marker_resu
     }
   }
   return(moduleResult)
-}
-
-cellOrderInference <- function(expr=exprZscore, module=moduleResultDf[moduleResultDf$module=="1",]$gene){
-  # module <- moduleResult[[1]]
-  # exprM <- logcounts(tmp_group)[module,]
-  exprM <- expr[module,]
-  # sign <- cor_matrix_spearman[module,module[1]] < 0 
-  # exprM[sign,] <- exprM[sign,]*(-1)
-  cellOrder <- sort(apply(exprM, 2, mean))
-  # cellOrderdf <- data.frame(as.vector(cellOrder))
-  # library(breakpoint)
-  # breakpoint.loc <- CE.Normal.MeanVar(cellOrderdf, Nmax=1)$BP.Loc-1
-  plot(cellOrder, xlab="sorted cells", ylab="mean expression of the module")
-  # abline(v=breakpoint.loc, col="red")
-  # pheatmap(logcounts(tmp_group)[moduleResult[[1]],names(cellOrder)], show_colnames = F, cluster_rows = T, cluster_cols = F)
-  # return(list(cellOrder=names(cellOrder), breakpoint=breakpoint.loc))
-  return(names(cellOrder))
 }
 
 # densityDf <- highDensityCenterDetection()
@@ -464,34 +448,184 @@ coreMarkerDetection <- function(corM=dis_matrix, exprM=expr_log3, densityDf=dens
 
 }
 
-sortmoduleResult <- function(corM, moduleResult=moduleResult){
+sortmoduleResult <- function(corM, moduleResultDfTop=moduleResultDfTop){
   meanCor <- c()
-  for (i in 1:length(moduleResult)){
-    meanCor <- c(meanCor, mean(corM[moduleResult[[i]], moduleResult[[i]]]))
+  for (i in unique(moduleResultDfTop$module)){
+    tmp <- moduleResultDfTop[moduleResultDfTop$module==i,]$gene
+    tmpCorM <- corM[tmp,tmp]
+    tmpMeanCor <- mean(tmpCorM[row(tmpCorM) < col(tmpCorM)])
+    meanCor <- c(meanCor, tmpMeanCor)
   }
-  names(meanCor) <- 1:length(moduleResult)
-  meanCor <- sort(meanCor)
+  names(meanCor) <- unique(moduleResultDfTop$module)
+  meanCor <- sort(meanCor, decreasing = F)
+  moduleResultDfTop$module <- factor(moduleResultDfTop$module, levels = names(meanCor))
+  moduleResultDfTop$module <- as.integer(moduleResultDfTop$module)
+  moduleResultDfTop <- moduleResultDfTop[order(moduleResultDfTop$module),]
+  return(moduleResultDfTop)
+}
+
+selectTopMarker <- function(expr=expr, moduleResultDf=moduleResultDf, densityDf=densityDf, top=10) {
+  topMarkers <- c()
+  for (i in unique(moduleResultDf$module)) {
+    tmp <- moduleResultDf[moduleResultDf$module==i,]$gene
+    tmpCount <- rowSums(expr[tmp,] > 0 )
+    tmp <- names(tmpCount)[tmpCount < dim(expr)[2]*0.95]
+    tmpTop <- rownames(densityDf[tmp,][1:top,])
+    if (length(tmpTop)<10) {next}
+    topMarkers <- c(topMarkers, tmpTop)
+  }
+  return(moduleResultDf[moduleResultDf$gene%in%topMarkers,])
+}
+
+cellOrderInference <- function(expr=exprZscore, module=moduleResultDf[moduleResultDf$module=="1",]$gene){
+  # module <- moduleResult[[1]]
+  # exprM <- logcounts(tmp_group)[module,]
+  exprM <- expr[module,]
+  # sign <- cor_matrix_spearman[module,module[1]] < 0 
+  # exprM[sign,] <- exprM[sign,]*(-1)
+  cellOrder <- sort(apply(exprM, 2, mean))
+  # cellOrderdf <- data.frame(as.vector(cellOrder))
+  # library(breakpoint)
+  # breakpoint.loc <- CE.Normal.MeanVar(cellOrderdf, Nmax=1)$BP.Loc-1
+  plot(cellOrder, xlab="sorted cells", ylab="mean expression of the module")
+  # abline(v=breakpoint.loc, col="red")
+  # pheatmap(logcounts(tmp_group)[moduleResult[[1]],names(cellOrder)], show_colnames = F, cluster_rows = T, cluster_cols = F)
+  # return(list(cellOrder=names(cellOrder), breakpoint=breakpoint.loc))
+  return(names(cellOrder))
+}
+
+classifyAndInference <- function(expr=expr, moduleResultDfTop=moduleResultDfTop, thresd=0.7, minClusterNum=5) {
+  moduleType <- data.frame()
+  inferCluster <- data.frame(cell=colnames(expr), row.names = colnames(expr))
+  tmp_colname <- c("cell")
+  for (i in unique(moduleResultDfTop$module)) {
+    module <- moduleResultDfTop[moduleResultDfTop$module==i,]$gene
+    if (length(module)<10) (next)
+    exprM <- expr[module,]
+    if (sum(colSums(exprM>0) < 0.8*dim(exprM)[1]) >= minClusterNum) {
+      moduleType <- rbind(moduleType, data.frame(module=i, type="discrete"))
+      tmpCluster <- colSums(exprM>0) >= thresd*dim(exprM)[1]
+      inferCluster <- cbind(inferCluster, i=tmpCluster[inferCluster$cell])
+      tmp_colname <- c(tmp_colname, i)
+    } else {
+      moduleType <- rbind(moduleType, data.frame(module=i, type="continuous"))
+    }
+  }
+  colnames(inferCluster) <- tmp_colname
+  inferCluster <- inferCluster[,-1]
+  # pheatmap(expr[moduleResultDfTop$gene,], show_colnames = F, cluster_rows = F, cluster_cols = T, show_rownames = T)
+  return(inferCluster)
+}
+
+selectIntermediateMarkers <- function(expr=expr, moduleResultDfTop=moduleResultDfTop, inferCluster=inferCluster, overlapThresd=5) {
+  intermediateModule <- c()
+  normalModule <- c()
+  for (i in 1:dim(inferCluster)[2]) {
+    tmp1df <- inferCluster[,i]
+    tmp2df <- inferCluster[,-i]
+    tmp2dfMerge <- as.vector(rowSums(tmp2df)>0)
+    # new above 5, or more than half is new
+    if (sum((tmp1df - tmp2dfMerge) == 1) >= overlapThresd | sum((tmp1df - tmp2dfMerge)==1 & tmp1df==1) / sum(tmp1df==1) > 0.3) {
+      normalModule <- c(normalModule, i)
+    } else {
+      intermediateModule <- c(intermediateModule, i)
+    }
+  }
+  # expr[moduleResultDfTop$gene,]
+  clusterDf <- data.frame(row.names=colnames(expr))
+  for (j in normalModule) {
+    tmpModule <- colSums(expr[moduleResultDfTop[moduleResultDfTop$module==j,]$gene,] > 0)
+    clusterDf <- cbind(clusterDf, as.data.frame(tmpModule))
+  }
+  colnames(clusterDf) <- normalModule
+  # take care of the rare one
+  # clusterDf <- clusterDf[,names(sort(colSums(clusterDf), decreasing = F))] # no use
+  # final clusters
+  finalCluster <- as.data.frame(apply(clusterDf, 1, function(x) names(sort(x, decreasing = T)[1])))
+  finalCluster$cell <- rownames(clusterDf)
+  colnames(finalCluster) <- c("Cluster", "cell")
+  if (sum(rowSums(clusterDf)==0)) {finalCluster[rowSums(clusterDf)==0,]$Cluster <- "unknow"}
+  finalCluster2 <- data.frame(Cluster=finalCluster$Cluster, row.names=finalCluster$cell)
+  # add intermediate module
+  finalCluster4 <- finalCluster2
+  order1 <- unique(finalCluster4$Cluster)
+  for (j in intermediateModule) {
+    # judge which two clusters it belong to
+    tmp1 <- inferCluster[,j]
+    tmp2 <- inferCluster[,-j]
+    origin2Cluster <- names(sort(apply(tmp2, 2, function(x) sum(x&tmp1)), decreasing = T)[1:2])
+    origin2Cluster <- sort(origin2Cluster)
+    #
+    finalCluster3 <- finalCluster
+    tmpInter <- tmp1 & (inferCluster[,origin2Cluster[1]] | inferCluster[,origin2Cluster[2]])
+    finalCluster3[tmpInter,]$Cluster <- as.character(j)
+    order2 <- c(order1[1:which(order1==origin2Cluster[1])], j, order1[which(order1==origin2Cluster[2]):length(order1)])
+    finalCluster4 <- cbind(finalCluster4, Cluster=finalCluster3$Cluster)
+  }
+  colnames(finalCluster4) <- c("MainClusters", paste("intermediate", j, sep=""))
+  finalCluster4$intermediate4 <- factor(finalCluster4$intermediate4, levels=order2)
+  # cellOrder <- rownames(finalCluster4)[order(finalCluster4$intermediate4)]
+  finalCluster4 <- finalCluster4[order(finalCluster4$intermediate4),]
+  cellOrder <- localSort(finalCluster4, local=as.character(j))
+}
+
+localSort <- function(finalCluster4, local=as.character(j)) {
+  order3 <- levels(finalCluster4$intermediate4)
+  former <- order3[1:(which(order3==local)-1)]
+  latter <- order3[(which(order3==local)+1):length(order3)]
+  formerCells <- rownames(finalCluster4)[finalCluster4$intermediate4 %in% former]
+  latterCells <- rownames(finalCluster4)[finalCluster4$intermediate4 %in% latter]
+  interCells <- finalCluster4[finalCluster4$intermediate4==local,]
+  interCells2 <-  rownames(interCells)[order(interCells$MainClusters)]
+  cellOrder <- c(formerCells, interCells2, latterCells)
+  return(cellOrder)
+}
+
+getFullMarkerModule <- function(dis_matrix2, moduleResultDfTop) {
+  # classify all the genes
+  fullGeneClusters <- data.frame(row.names = rownames(dis_matrix2))
+  for (i in unique(moduleResultDfTop$module)) {
+    tmpGene <- moduleResultDfTop[moduleResultDfTop$module==i,]$gene
+    fullGeneClusters <- cbind(fullGeneClusters, as.data.frame(rowSums(dis_matrix2[, tmpGene])))
+  }
+  colnames(fullGeneClusters) <- unique(moduleResultDfTop$module)
+  as.data.frame(apply(fullGeneClusters, 1, function(x) names(sort(x, decreasing = T)[1])))
+  fullGeneClusters2 <- as.data.frame(apply(fullGeneClusters, 1, function(x) names(sort(x, decreasing = F)[1])))
+  colnames(fullGeneClusters2) <- "module"
+  # select the top 100 genes
+  fullGeneClusters3 <- list()
+  for (j in unique(moduleResultDfTop$module)) {
+    tmpGene <- rownames(fullGeneClusters2)[fullGeneClusters2$module==j]
+    tmpGene2 <- moduleResultDfTop[moduleResultDfTop$module==j,]$gene
+    tmpTop100 <- names(sort(rowSums(dis_matrix2[tmpGene, tmpGene2]), decreasing=F)[1:100])
+    fullGeneClusters3[[j]] <- tmpTop100
+    save(fullGeneClusters3, file="fullGeneClusters3.Rdata")
+  }
 }
 
 # pdf(sprintf('results/%s_maturation_trajectory.pdf', result.bn), width = 7, height = 5)
 
-moduleResultDf <- transferListToDf(moduleResult=newModuleResult)
-# setwd('D:\\2.Code\\github\\MBSIT\\R')
 expr <- logcounts(tmp_group)
+# moduleResultDf <- transferListToDf(moduleResult=newModuleResult)
+moduleResultDfTop <- selectTopMarker(expr=expr, moduleResultDf=moduleResultDf, densityDf=densityDf, top=10)
+moduleResultDfTop <- moduleResultDfTop[moduleResultDfTop$module%in% names(table(moduleResultDfTop$module))[table(moduleResultDfTop$module)==10],]
+moduleResultDfTop <- sortmoduleResult(corM=corM, moduleResultDfTop=moduleResultDfTop)
+# setwd('D:\\2.Code\\github\\MBSIT\\R')
 # expr <- expr_matrix2
 exprZscore <- (expr-apply(expr, 1, mean))/apply(expr, 1, sd)
 # for (i in 1:length(moduleResult)){
 pdf('moduleResult.pdf')
 library(pheatmap)
-for (i in unique(moduleResultDf$module)) {
+for (i in unique(moduleResultDfTop$module)) {
   # pheatmap(expr[moduleResult[[i]],], show_colnames = F, cluster_rows = T)
-  module <- moduleResultDf[moduleResultDf$module==i,]$gene
+  module <- moduleResultDfTop[moduleResultDfTop$module==i,]$gene
   cellOrder <- cellOrderInference(expr=exprZscore, module=module)
   #breakpoint.loc <- cellOrderInference(exprZscore, module)$breakpoint
-  pheatmap(exprZscore[module,cellOrder], show_colnames = F, cluster_rows = T, cluster_cols = F, show_rownames = T)
+  pheatmap(expr[module,cellOrder], show_colnames = F, cluster_rows = T, cluster_cols = F, show_rownames = T)
 }
 dev.off()
-
+pheatmap(expr[moduleResultDfTop$gene,], show_colnames = F, cluster_rows = F, cluster_cols = T, show_rownames = T)
+pheatmap(expr[moduleResultDfTop$gene,cellOrder], show_colnames = F, cluster_rows = F, cluster_cols = F, show_rownames = T, annotation_col = finalCluster4)
 
 #######################
 # main code
@@ -501,17 +635,18 @@ tmp_group <- tmp_group[,result$cluster!=0]
 
 # 
 expr_log3 <- t(logcounts(tmp_group))
-expr_log3 <- t(expr_matrix)
+# expr_log3 <- t(expr_matrix)
+
 # overlap
 # expr_log4 <- apply(expr_log3>=1,2,function(x) {storage.mode(x) <- 'integer'; x})
 # geneOverlap <- t(expr_log4) %*% expr_log4 
 # use.gene <- rownames(geneOverlap)[apply(geneOverlap, 2, max) > 3]
 expr_log3 <- expr_log3[,colSums(expr_log3>0)>3]
 
-library(WGCNA)
+# library(WGCNA)
 # standard deviation can't be zero
 # cor_matrix_pearson <- WGCNA::cor(x = as.matrix((expr_log3)), method = "pearson")
-cor_matrix_spearman <- WGCNA::cor(x = as.matrix((expr_log3)), method = "spearman")
+cor_matrix_spearman <- cor(x = as.matrix((expr_log3)), method = "spearman")
 
 cor_matrix_spearman[cor_matrix_spearman<0] <- 0
 dis_matrix <- 1 - abs(cor_matrix_spearman)
@@ -527,6 +662,7 @@ disThresd <- quantile(minPerRow, probs = seq(0, 1, 0.1))[2]
 dis_matrix2 <- dis_matrix
 dis_matrix <- dis_matrix[names(minPerRow[minPerRow < disThresd]),names(minPerRow[minPerRow < disThresd])]
 # dis_matrix_dist <- as.dist(dis_matrix)
+
 
 ## DBSCAN
 ## find most local centers
